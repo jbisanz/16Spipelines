@@ -21,6 +21,7 @@ hostname
 # To do, remove reads mapping to PhiX which appear to show up as singleton ISUs (usearch or vsearch?)
 # Will strip out these ISUs during the analysis with usearch
 
+
 WORKING_DIR=/scrapp2/human_sep25_2016
 FORWARD_READ=$WORKING_DIR/Reiner_Human_S0_L001_R1_001.fastq.gz
 REVERSE_READ=$WORKING_DIR/Reiner_Human_S0_L001_R2_001.fastq.gz
@@ -125,11 +126,19 @@ for(i in seq_along(forwards)) {
 ##############################
 #learn errors on subset 
 set.seed($SEED) # Blink182/Scarface inspired seed
-filts.learn <- sample(c(filtFs, filtRs), $ERROR_LEARN) # Pick subset samples (>100k reads/sample) to learn from
-message(date(),      "Learning error rates from: ", filts.learn)
+
+filts.learn <- sample(filtFs, $ERROR_LEARN)
+message(date(),      "Learning Forward error rates from: ", filts.learn)
 drp.learn <- derepFastq(filts.learn)
 dd.learn <- dada(drp.learn, err=NULL, selfConsist=TRUE, multithread=TRUE)
-err <- dd.learn[[1]]$err_out
+err_F <- dd.learn[[1]]$err_out
+rm(drp.learn);rm(dd.learn)
+
+filts.learn <- sample(filtRs, $ERROR_LEARN)
+message(date(),      "Learning Reverse error rates from: ", filts.learn)
+drp.learn <- derepFastq(filts.learn)
+dd.learn <- dada(drp.learn, err=NULL, selfConsist=TRUE, multithread=TRUE)
+err_R <- dd.learn[[1]]$err_out
 rm(drp.learn);rm(dd.learn)
 #############################
 
@@ -141,9 +150,9 @@ names(derepFs) <- sample.names
 names(derepRs) <- sample.names
 
 message(date(), "     DADAing forward...")
-dadaFs <- dada(derepFs, err=err, selfConsist = TRUE, multithread=TRUE)
+dadaFs <- dada(derepFs, err=err_F, selfConsist = TRUE, multithread=TRUE)
 message(date(), "     DADAing reverse...")
-dadaRs <- dada(derepRs, err=err, selfConsist = TRUE, multithread=TRUE)
+dadaRs <- dada(derepRs, err=err_R, selfConsist = TRUE, multithread=TRUE)
 
 pdf("results/ErrorProfiles.pdf")
   plotErrors(dadaFs[[1]], nominalQ=TRUE)
