@@ -20,7 +20,7 @@ hostname
 # Using QIIME 1.9.1, on UCSF QB3 cluster under OGS/GE 2011.11p1 with dada2_1.1.5 
 # To do, remove reads mapping to PhiX which appear to show up as singleton ISUs (usearch or vsearch?)
 # Will strip out these ISUs during the analysis with usearch
-
+#using elements from http://benjjneb.github.io/dada2/bigdata.html
 
 WORKING_DIR=/scrapp2/human_sep25_2016
 FORWARD_READ=$WORKING_DIR/Reiner_Human_S0_L001_R1_001.fastq.gz
