@@ -92,7 +92,7 @@ module load MRO
 #########################################################################
 
 #Rcode below using shell variables
-
+#Using portions of code from http://benjjneb.github.io/dada2/
 /netopt/MRO/R/lib64/R/bin/R --no-save <<EOF
 require(dada2)
 forwards<-list.files("demultiplexed/F/")
