@@ -12,46 +12,52 @@
 
 #Using QIIME 1.9.1, on UCSF QB3 cluster under OGS/GE 2011.11p1
 
-date
-hostname
+
 #################################################################
-#JB Sep 24/2016
+#JB Oct25/2016
 # Version 1.3
 # Will merge the forward and reverse reads  from illumina sequencers, demultiplex and pick OTUs. I only did a base install on the cluster so after completion move files to biggut.ucsf.edu, and download biom files and trees and use macqiime to analyze on own computer
 # All work will be done in what ever is described in WORKING_DIR so make sure your reads are here
-# Expecting V4 reads with EMP golay primers
-#
+# Expecting V4 reads with Caparaso golay primers
 #
 #
 #Change log:
+# Oct25, 2016- Minor cosmetic changes.
 # Sept20, 2016- Adding Chimera removal with usearch61, and changing overlap to vsearch which requires separate demultiplexing
 # Mar3, 2016- Reduced the number of jobs being submitted as most weren't clearing the que before the others were finished, reduced request for netapp as this shouldn't be used for this analysis
 #
 # July6, 2016- Added the SILVA DB as an option, also changed the method of counting reads as it was taking obscenely long, also added a default taxa summary plot and pcoa as standard outputs
-#			- Now also putting in a minimum abundance filter, an OTU needs at least 20 counts in at least 2 samples to be retained, this can be modified below
+#			- Now also putting in a minimum abundance filter, an OTU needs at least 10 counts in at least 2 samples to be retained, this can be modified below
 #			- Also trimming back the seed sequences and tree to only otus passing filter
 #			- Be aware that SILVA is using the 90% majority taxonomy assignments and not the 100% consensus which could result in a slight over calling of taxa ids, you could change this by creating your own version of settings/qiime_config_silva.txt and adjusting line 125
 #			- Reduced number of jobs to 14 such that it will fill our allocated number of lab.q slots (14 total)
-#			- Total run time for 16million 251x151 reads timed at 1.5h with SILVA, closer to 1h with GG.
+#			0- Total run time for 16million 251x151 reads timed at 1.5h with SILVA, closer to 1h with GG.
 #
-#
+#################################################################
+
+echo "##################################################################################"
+echo "$(date)	Running QIIME Pipeline v1.3 on node $(hostname)"
+
 #INDICATE YOUR FORWARD/REVERSE/INDEX READS AND MAPPING FILE
 #PREPARE YOUR MAPPING FILE LOCALLY WITH MACQIIME (validate_mapping_file.py)
 #PUT YOUR INFORMATION HERE
-WORKING_DIR=/scrapp2/mouse_dada2
-FORWARD_READ=$WORKING_DIR/Reiner_GnotoMice_S0_L001_R1_001.fastq.gz
-REVERSE_READ=$WORKING_DIR/Reiner_GnotoMice_S0_L001_R2_001.fastq.gz
-INDEX_READ=$WORKING_DIR/Reiner_GnotoMice_S0_L001_I1_001.fastq.gz
-MAPPING_FILE=$WORKING_DIR/metadata.txt
 
-DBCHOICE="GG" #Use "SILVA" to use SILVA123 or "GG" for Green Genes may 2013
+WORKING_DIR=/scrapp2/INSERTHERE
+FORWARD_READ=$WORKING_DIR/INSERTHERE
+REVERSE_READ=$WORKING_DIR/INSERTHERE
+INDEX_READ=$WORKING_DIR/INSERTHERE
+MAPPING_FILE=$WORKING_DIR/INSERTHERE
 
-MINREADS=10 #For an otu to be retained, needs to be at counted at least 10x
+DBCHOICE="GG" #Use "SILVA" to use SILVA123 or "GG" for Green Genes May 2013
+
+MINREADS=10 #For an OTU to be retained, needs to be at counted at least 10x
 MINSAMPLES=2  #and present in at least 2 samples
 
 
 ################################################################
 #DON'T CHANGE WHAT IS BELOW HERE
+
+
 source /netapp/home/jbisanz/.bash_profile
 source /netapp/home/jbisanz/qiime_for_cluster_1.9.1/settings/sourceme.sh 
 
@@ -140,7 +146,7 @@ mkdir paralleljob_logs
 mv **.o[0-9]* paralleljob_logs
 
 
-echo "Doing default trimming as specified above: At least $MINREADS Reads in at least $MINSAMPLES Samples"
+echo "Doing default trimming as specified above: At least $MINREADS Reads in at least $MINSAMPLES Samples. Originals have been retained in otus/"
 	filter_otus_from_otu_table.py -n $MINREADS -s $MINSAMPLES -i otus/otu_table_mc2_w_tax_no_pynast_failures.biom -o master_otu_table.biom
 	filter_fasta.py -f otus/rep_set.fna -b master_otu_table.biom -o otu_seed_seqs.fna
 	filter_tree.py -i otus/rep_set.tre -f otu_seed_seqs.fna -o otu_seed_seqs.tree

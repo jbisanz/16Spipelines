@@ -9,24 +9,24 @@
 #$ -l arch=linux-x64
 #$ -l netapp=20G,scratch=1G
 #$ -l h_rt=96:0:0
-#$ -pe smp 24
-date
-hostname
+#$ -pe smp 12
+
+echo "##################################################################################"
+echo "$(date)	Running DADA2 Pipeline v1.3 on node $(hostname)"
+
 
 #########################################################################
-#JB Sep 24/2016
-# Version 1.1
-# Generates a table of ISUs/RSVs and corresponding taxonomies from multiple DBs
+#JB Oct25/2016
+# Version 1.3
+# Generates a table of sequence variants and corresponding taxonomies from multiple DBs
 # Using QIIME 1.9.1, on UCSF QB3 cluster under OGS/GE 2011.11p1 with dada2_1.1.5 
-# To do, remove reads mapping to PhiX which appear to show up as singleton ISUs (usearch or vsearch?)
-# Will strip out these ISUs during the analysis with usearch
-#using elements from http://benjjneb.github.io/dada2/bigdata.html
+# Using code derived from http://benjjneb.github.io/dada2/bigdata.html
 
-WORKING_DIR=/scrapp2/human_sep25_2016
-FORWARD_READ=$WORKING_DIR/Reiner_Human_S0_L001_R1_001.fastq.gz
-REVERSE_READ=$WORKING_DIR/Reiner_Human_S0_L001_R2_001.fastq.gz
-INDEX_READ=$WORKING_DIR/Reiner_Human_S0_L001_I1_001.fastq.gz
-MAPPING_FILE=$WORKING_DIR/mapping_file.txt
+WORKING_DIR=/scrapp2/INSERTHERE
+FORWARD_READ=$WORKING_DIR/INSERTHERE
+REVERSE_READ=$WORKING_DIR/INSERTHERE
+INDEX_READ=$WORKING_DIR/INSERTHERE
+MAPPING_FILE=$WORKING_DIR/INSERTHERE
 
 ERROR_LEARN=60 #learn error profile from this many randomly picked samples
 SEED=182 #randomization seed
@@ -165,29 +165,34 @@ mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 message(date(), "     Making table..")
 seqtab <- makeSequenceTable(mergers)
 message("Dimensions of seqtab: ", dim(seqtab))
-write.table(seqtab, file="results/ISUtable.withchimeras.txt", sep='\t', quote=F, col.names=NA)
 
 message(date(), "     Removing chimeras...")
 seqtab.nochim <- removeBimeraDenovo(seqtab, verbose=TRUE)
 message("Fraction surviving: ", sum(seqtab.nochim)/sum(seqtab))
-write.table(seqtab.nochim, file="results/ISUtable.txt", sep='\t', quote=F, col.names=NA)
+write.table(seqtab.nochim, file="results/ISUtable.with.phix.txt", sep='\t', quote=F, col.names=NA)
 
+message(date(), "     Removing PhiX...")
+phix<-isPhiX(colnames(seqtab.nochim))
+print(paste("There were", sum(phix), "SVs matching PhiX representing", sum(colSums(seqtab.nochim[,phix])), "reads or", (100*sum(colSums(seqtab.nochim[,phix]))/sum(ISU.table)) , "% of reads"))
+seqtab.nochim.nophix<-seqtab.nochim[,!phix]
+write.table(seqtab.nochim.nophix, file="results/ISUtable.txt", sep='\t', quote=F, col.names=NA)
 
 
 message(date(), "     Assigning Taxonomy to species level with SILVA...")
-taxa <- assignTaxonomy(seqtab.nochim, "/netapp/home/jbisanz/dada2_training_sets/silva_nr_v123_train_set.fa.gz")
+taxa <- assignTaxonomy(seqtab.nochim.nophix, "/netapp/home/jbisanz/dada2_training_sets/silva_nr_v123_train_set.fa.gz")
 taxa <- addSpecies(taxa, "/netapp/home/jbisanz/dada2_training_sets/silva_species_assignment_v123.fa.gz", verbose=TRUE, allowMultiple=TRUE)
 colnames(taxa) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
 write.table(taxa, file="results/ISUtaxonomy.SILVA.txt", sep='\t', quote=F, col.names=NA)
 ##
 message(date(), "     Assigning Taxonomy to species level with RDP...")
-taxa <- assignTaxonomy(seqtab.nochim, "/netapp/home/jbisanz/dada2_training_sets/rdp_train_set_14.fa.gz")
+taxa <- assignTaxonomy(seqtab.nochim.nophix, "/netapp/home/jbisanz/dada2_training_sets/rdp_train_set_14.fa.gz")
 taxa <- addSpecies(taxa, "/netapp/home/jbisanz/dada2_training_sets/rdp_species_assignment_14.fa.gz", verbose=TRUE, allowMultiple=TRUE)
 colnames(taxa) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
 write.table(taxa, file="results/ISUtaxonomy.RDP.txt", sep='\t', quote=F, col.names=NA)
+
 ##
 message(date(), "     Assigning Taxonomy to genus level with Green Genes...")
-taxa <- assignTaxonomy(seqtab.nochim, "/netapp/home/jbisanz/dada2_training_sets/gg_13_8_train_set_97.fa.gz")
+taxa <- assignTaxonomy(seqtab.nochim.nophix, "/netapp/home/jbisanz/dada2_training_sets/gg_13_8_train_set_97.fa.gz")
 write.table(taxa, file="results/ISUtaxonomy.GG.txt", sep='\t', quote=F, col.names=NA)
 
 message(date(), "    Complete")
