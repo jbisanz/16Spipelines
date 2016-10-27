@@ -31,7 +31,7 @@
 #			- Also trimming back the seed sequences and tree to only otus passing filter
 #			- Be aware that SILVA is using the 90% majority taxonomy assignments and not the 100% consensus which could result in a slight over calling of taxa ids, you could change this by creating your own version of settings/qiime_config_silva.txt and adjusting line 125
 #			- Reduced number of jobs to 14 such that it will fill our allocated number of lab.q slots (14 total)
-#			0- Total run time for 16million 251x151 reads timed at 1.5h with SILVA, closer to 1h with GG.
+#			- Total run time for 16million 251x151 reads timed at 1.5h with SILVA, closer to 1h with GG.
 #
 #################################################################
 
@@ -92,6 +92,9 @@ split_libraries_fastq.py -m $MAPPING_FILE --rev_comp_mapping_barcodes --barcode_
 else
         echo "...already done, skipping"
 fi
+
+echo "$(date)     Summary of demultiplexing:"
+head -n 12  $WORKING_DIR/splitlib/forward_split_library_log.txt
 
 echo "$(date)     Overlapping"
 if [ ! -e $WORKING_DIR/splitlib/seqs.fna ]; then

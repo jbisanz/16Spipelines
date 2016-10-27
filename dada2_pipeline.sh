@@ -81,6 +81,11 @@ done
 else
 	echo "Expected that reads have already been demultiplexed based on directory structure"
 fi
+
+echo "$(date)     Summary of demultiplexing:"
+head -n 12  $WORKING_DIR/splitlib/forward_split_library_log.txt
+
+
 #########################################################################
 echo "$(date)	Handing over to R"
 export R_LIBS="/netapp/home/jbisanz/R/x86_64-pc-linux-gnu-library/3.2/"
@@ -103,14 +108,14 @@ forwards<-file.path("demultiplexed/F/", forwards)
 reverses<-file.path("demultiplexed/R/", reverses)
 
 
-dir.create("results")
-dir.create("results/read_quality")
+dir.create("dada2_results")
+dir.create("dada2_results/read_quality")
 
-pdf(paste("results/read_quality/","Forward_Quality.pdf",sep=""))
+pdf(paste("dada2_results/read_quality/","Forward_Quality.pdf",sep=""))
 plotQualityProfile(forwards[1])
 dev.off()
 
-pdf(paste("results/read_quality/","Reverse_Quality.pdf",sep=""))
+pdf(paste("dada2_results/read_quality/","Reverse_Quality.pdf",sep=""))
 plotQualityProfile(reverses[1])
 dev.off()
 
@@ -169,31 +174,31 @@ message("Dimensions of seqtab: ", dim(seqtab))
 message(date(), "     Removing chimeras...")
 seqtab.nochim <- removeBimeraDenovo(seqtab, verbose=TRUE)
 message("Fraction surviving: ", sum(seqtab.nochim)/sum(seqtab))
-write.table(seqtab.nochim, file="results/ISUtable.with.phix.txt", sep='\t', quote=F, col.names=NA)
+write.table(seqtab.nochim, file="dada2_results/ISUtable.with.phix.txt", sep='\t', quote=F, col.names=NA)
 
 message(date(), "     Removing PhiX...")
 phix<-isPhiX(colnames(seqtab.nochim))
 print(paste("There were", sum(phix), "SVs matching PhiX representing", sum(colSums(seqtab.nochim[,phix])), "reads or", (100*sum(colSums(seqtab.nochim[,phix]))/sum(ISU.table)) , "% of reads"))
 seqtab.nochim.nophix<-seqtab.nochim[,!phix]
-write.table(seqtab.nochim.nophix, file="results/ISUtable.txt", sep='\t', quote=F, col.names=NA)
+write.table(seqtab.nochim.nophix, file="dada2_results/ISUtable.txt", sep='\t', quote=F, col.names=NA)
 
 
 message(date(), "     Assigning Taxonomy to species level with SILVA...")
 taxa <- assignTaxonomy(seqtab.nochim.nophix, "/netapp/home/jbisanz/dada2_training_sets/silva_nr_v123_train_set.fa.gz")
 taxa <- addSpecies(taxa, "/netapp/home/jbisanz/dada2_training_sets/silva_species_assignment_v123.fa.gz", verbose=TRUE, allowMultiple=TRUE)
 colnames(taxa) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-write.table(taxa, file="results/ISUtaxonomy.SILVA.txt", sep='\t', quote=F, col.names=NA)
+write.table(taxa, file="dada2_results/ISUtaxonomy.SILVA.txt", sep='\t', quote=F, col.names=NA)
 ##
 message(date(), "     Assigning Taxonomy to species level with RDP...")
 taxa <- assignTaxonomy(seqtab.nochim.nophix, "/netapp/home/jbisanz/dada2_training_sets/rdp_train_set_14.fa.gz")
 taxa <- addSpecies(taxa, "/netapp/home/jbisanz/dada2_training_sets/rdp_species_assignment_14.fa.gz", verbose=TRUE, allowMultiple=TRUE)
 colnames(taxa) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-write.table(taxa, file="results/ISUtaxonomy.RDP.txt", sep='\t', quote=F, col.names=NA)
+write.table(taxa, file="dada2_results/ISUtaxonomy.RDP.txt", sep='\t', quote=F, col.names=NA)
 
 ##
 message(date(), "     Assigning Taxonomy to genus level with Green Genes...")
 taxa <- assignTaxonomy(seqtab.nochim.nophix, "/netapp/home/jbisanz/dada2_training_sets/gg_13_8_train_set_97.fa.gz")
-write.table(taxa, file="results/ISUtaxonomy.GG.txt", sep='\t', quote=F, col.names=NA)
+write.table(taxa, file="dada2_results/ISUtaxonomy.GG.txt", sep='\t', quote=F, col.names=NA)
 
 message(date(), "    Complete")
 
