@@ -223,10 +223,14 @@ mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 message("------->", date(), "     Making table..")
 	seqtab <- makeSequenceTable(mergers)
 message("Dimensions of seqtab: ", dim(seqtab))
+	write.table(seqtab, file="dada2_results/ISUtable.withchimera.txt", sep='\t', quote=F, col.names=NA)
 
 message("------->", date(), "     Removing chimeras...")
 	seqtab.nochim <- removeBimeraDenovo(seqtab, verbose=TRUE)
 message("Fraction surviving: ", sum(seqtab.nochim)/sum(seqtab))
+	write.table(seqtab.nochim, file="dada2_results/ISUtable.txt", sep='\t', quote=F, col.names=NA)
+
+
 
 message("------->", date(), "     Assigning Taxonomy to species level with SILVA...")
 	taxa <- assignTaxonomy(seqtab.nochim, "/netapp/home/jbisanz/dada2_training_sets/silva_nr_v123_train_set.fa.gz")
