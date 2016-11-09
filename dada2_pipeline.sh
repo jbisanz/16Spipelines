@@ -184,7 +184,7 @@ if (!file.exists("dada2_intermediates/dada2_derepRs.rds")){
 	names(derepFs) <- sample.names
 	names(derepRs) <- sample.names
 		saveRDS(derepFs, "dada2_intermediates/dada2_derepFs.rds")
-		saveRDS(derepFs, "dada2_intermediates/dada2_derepRs.rds")
+		saveRDS(derepRs, "dada2_intermediates/dada2_derepRs.rds")
  }else{
  	message("------->", date(),"	reading in deprelicated reads from dada2_intermediates/dada2_derep[FR]s.rds")
 	derepFs<-readRDS("dada2_intermediates/dada2_derepFs.rds")
