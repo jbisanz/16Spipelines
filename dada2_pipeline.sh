@@ -108,7 +108,7 @@ module load MRO
 
 #Rcode below using shell variables
 
-/netopt/MRO/R/lib64/R/bin/R --no-save <<EOF
+/netopt/MRO/R-3.2.5/lib64/R/bin/R --no-save <<EOF
 require(dada2)
 forwards<-list.files("demultiplexed/F/")
 reverses<-list.files("demultiplexed/R/")
