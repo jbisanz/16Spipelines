@@ -50,7 +50,7 @@ author: "J. Bisanz"
 date: '`r format(Sys.time(), "%Y-%m-%d %H:%M")`'
 output: 
   html_document:
-    code_folding: show
+    code_folding: hide
     theme: spacelab
     highlight: monochrome
     fig_width: 11
@@ -59,7 +59,9 @@ output:
 
 
 #Sections:
+
 ## 1. [Data Import, Denoising and QC](#S1)
+
 * 1.1 [Library Import](#S1.1)
 * 1.2 [Raw Read Depth](#S1.2)
 * 1.3 [Adapter Removal](#S1.3)
@@ -77,13 +79,16 @@ output:
 * 1.15 [Taxonomy Assignment](#S1.15)
 
 ## 2. [Standards and Controls](#S2)
+
 * 2.1 [Community Standards](#S2.1)
 * 2.2 [Negative Controls and GF Mice](#S2.2)
 
 
 ***
 
+
 # 1. Data Import, Denoising and QC
+
 
 ```{r setup, include=TRUE, message=F, warning=F}
 PROJECTNAME=Sys.getenv("PROJECTNAME")
@@ -106,8 +111,8 @@ require(MicrobeR) #version 0.1.1
 require(R.utils) # version 2.5.0
 require(stringr) # version 1.2.0
 require(ggplot2) # version 2.2.1
-require(dplyr) # version 0.5.0
 require(plyr) # version 1.8.4
+require(dplyr) # version 0.5.0
 require(data.table) # version 1.10.4
 require(reshape2) # version 4.5.6
 require(plotly) # version 4.5.6
@@ -129,7 +134,7 @@ metadata<-read.table(SAMPLESHEET, header=T, sep=',', stringsAsFactors = F, skip 
 reads<-data.frame(FASTQs=list.files(READS, include.dirs = FALSE, recursive = TRUE), stringsAsFactors = F)
 reads$Read<-sapply(reads$FASTQs, function(x){str_sub(x, -15)})
 reads$Read<-str_sub(reads$Read, 1, 2)
-reads$Sample_ID<-gsub("-..+","",reads$FASTQs)
+reads$Sample_ID<-gsub("-[0-9]+/..+fastq\\.gz", "", reads$FASTQs)
 reads<-dcast(reads, Sample_ID~Read, value.var="FASTQs")
 reads$UnFilt.NRead<-sapply(reads$R1, function(x){countLines(paste0(READS,x))[1]/4})
 
