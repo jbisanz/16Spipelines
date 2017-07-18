@@ -348,8 +348,8 @@ ggplot(readplot, aes(x=Step, y=ReadNumber, group=Sample_ID, color=Sample_Plate))
 ## 1.15 Taxonomy Assignment {#S1.15}
 ```{r TaxAssignment}
 if(!file.exists(paste0(INTERIM,"/taxonomy.RDS"))){
-taxonomy <- assignTaxonomy(SVtable, "/netapp/home/jbisanz/dada2_training_sets/silva_nr_v123_train_set.fa.gz", multithread=TRUE)
-taxonomy <- addSpecies(taxonomy, "/netapp/home/jbisanz/dada2_training_sets/silva_species_assignment_v123.fa.gz", allowMultiple=TRUE)
+taxonomy <- assignTaxonomy(SVtable, "/netapp/home/jbisanz/dada2_training_sets/silva_nr_v128_train_set.fa.gz", multithread=TRUE)
+taxonomy <- addSpecies(taxonomy, "/netapp/home/jbisanz/dada2_training_sets/silva_species_assignment_v128.fa.gz", allowMultiple=TRUE)
 
 ggtaxonomy <- assignTaxonomy(SVtable, "/netapp/home/jbisanz/dada2_training_sets/gg_13_8_train_set_97.fa.gz", multithread=TRUE)
 
