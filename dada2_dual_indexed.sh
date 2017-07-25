@@ -324,9 +324,9 @@ table(nchar(getSequences(SVtable)))
 
 ***
 ## 1.13 <i>In Silico</i> Size Selection {#S1.13}
-In silico Size select, check on future runs if this is still necessary. Alowing for 253 ± 20%
+In silico Size select, check on future runs if this is still necessary. Alowing for 253 ± 10%
 ```{r InSilicoSize}
-AllowVar=0.2
+AllowVar=0.1
 ExpectedSize=253
 SizeSelect<-SVtable[,(nchar(colnames(SVtable))<(ExpectedSize*(1+AllowVar)) & nchar(colnames(SVtable))>(ExpectedSize*(1-AllowVar)))]
 print(paste("Removed", ncol(SVtable)-ncol(SizeSelect), "Sequence Variants of ", ncol(SVtable), "outside of", 100*(AllowVar),"% of", ExpectedSize, "bp."))
@@ -386,8 +386,8 @@ saveRDS(SVtable,paste0(INTERIM,"/SVtable.RDS"))
 
 Check standards at the genus level. I have assumed that samples which are the community standards have "STANDARD" somewhere in their name.
 ```{r CommunityStandards}
-if(sum(colnames(SVtable) %like% "STANDARD")>0){
-standardstab<-SVtable[,colnames(SVtable) %like% "STANDARD"]
+if(sum(colnames(SVtable) %like% "STD")>0){
+standardstab<-SVtable[,colnames(SVtable) %like% "STD"]
 Microbiome.Barplot(Summarize.Taxa(standardstab, taxonomy)[[6]])
 Nice.Table(merge(standardstab[rowSums(standardstab)>2,], taxonomy, all.x=T, all.y=F, by="row.names"))
 } else {print("No STANDARDs found, skipping this...")}
@@ -396,11 +396,11 @@ Nice.Table(merge(standardstab[rowSums(standardstab)>2,], taxonomy, all.x=T, all.
 ***
 ## 2.2 Negative Controls and GF Mice {#S2.2}
 
-Check Controls, assuming names contain "EXTRACTION", "NTC" and/or "GF".
+Check Controls, assuming names contain "EXTCON", "NTC" and/or "GF".
 ```{r NegativeControls}
-if(any(colnames(SVtable) %like% "EXTRACTION", colnames(SVtable) %like% "NTC", colnames(SVtable) %like% "GF")){
-constab<-as.data.frame(SVtable[,grep("EXTRACTION|GF|NTC", colnames(SVtable))])
-#Microbiome.Barplot(Summarize.Taxa(constab, taxonomy)[[6]])
+if(any(colnames(SVtable) %like% "EXTCON", colnames(SVtable) %like% "NTC", colnames(SVtable) %like% "GF")){
+constab<-as.data.frame(SVtable[,grep("EXTCON|GF|NTC", colnames(SVtable))])
+Microbiome.Barplot(Summarize.Taxa(constab, taxonomy)$Genus)
 Nice.Table(merge(constab[rowSums(constab)>2,], taxonomy, all.x=T, all.y=F, by="row.names"))
 } else {print("No EXTRACTIONs, NTCs, or GFs found, skipping this...")}
 ```
