@@ -33,7 +33,7 @@ export CUTADAPT="/netapp/home/jbisanz/qiime_for_cluster_1.9.1/dependencies/Pytho
 
 echo "$(date)	Handing over to R"
 export R_LIBS="/netapp/home/jbisanz/R/x86_64-pc-linux-gnu-library/3.3/"
-export OMP_NUM_THREADS=1 #####
+export OMP_NUM_THREADS=16
 module load MRO
 
 
