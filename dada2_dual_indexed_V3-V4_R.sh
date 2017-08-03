@@ -18,7 +18,7 @@ echo "$(date)	Assuming overlapping V3-V4 reads with primer sequences still embed
 #Enter your settings below which will be exported to the environment for import to R
 #Pipeline has been updated to version 1.5.2 of dada2 installed from github
 
-export PROJECTNAME="lophi"
+export PROJECTNAME="test"
 export WORKDIR="~/testing/16S_pipeline/"             #"~/Research/MHGEP/MGHEP_16S/" #working directory
 export READS="reads/"                               #name of read folder from Basespace folder
 export SAMPLESHEET="sample_sheet_trunc.csv"          #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
@@ -28,7 +28,7 @@ export INTERIM="RDS/"                               #name of folder for staging 
 export CUTADAPT="/netapp/home/jbisanz/qiime_for_cluster_1.9.1/dependencies/Python-2.7.11-build/bin/cutadapt" #location of cutadapt install
 
 #########################################################################
-#source /netapp/home/jbisanz/.bash_profile #####
+source /netapp/home/jbisanz/.bash_profile 
 #########################################################################
 
 echo "$(date)	Handing over to R"
