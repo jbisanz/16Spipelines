@@ -19,9 +19,9 @@ echo "$(date)	Assuming overlapping V3-V4 reads with primer sequences still embed
 #Pipeline has been updated to version 1.5.2 of dada2 installed from github
 
 export PROJECTNAME="Test"
-export WORKDIR="~/testing/16S_pipeline_2/"          #working directory
+export WORKDIR="~/work/"          #working directory
 export READS="reads/"                               #name of read folder from Basespace folder
-export SAMPLESHEET="sample_sheet_trunc.csv"         #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
+export SAMPLESHEET="sample_sheet.csv"         #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
 export TRIM="TrimmedSeqs/"                          #name of folder for trimmed sequences from cutadapt
 export FILT="FilteredSeqs/"                         #name of folder for filtered sequences from dada2
 export INTERIM="RDS/"                               #name of folder for staging temp files
@@ -216,7 +216,6 @@ system(paste0(CUTADAPT, " --discard-untrimmed --pair-filter=both --error-rate=0.
 
 #add another column to metadata dataframe with number of reads remaining after trimming primer seqs
 metadata$Trimmed.NRead<-sapply(paste0(TRIM,"/",metadata$Sample_ID,".R1.fastq.gz"), function(x){countLines(x)[1]/4})
-
 ```
 
 ***
@@ -235,7 +234,6 @@ print(paste("The following samples had less than", threshold, "reads and have be
 print(metadata[Trimmed.NRead < threshold])
 metadata<-metadata[Trimmed.NRead >= threshold]
 }
-
 ```
 
 ***
@@ -255,19 +253,19 @@ samps<-sample(metadata$Sample_ID, subset_num, replace = F)
 #plot quality profile for fwd and rev reads
 plotQualityProfile(paste0(TRIM, samps, ".R1.fastq.gz")) + ggtitle("Forward Qualities")
 plotQualityProfile(paste0(TRIM, samps, ".R2.fastq.gz")) + ggtitle("Reverse Qualities")
-
 ```
 
 ***
 ## 1.6 Filtering {#S1.6}
 
-Trim the forward and reverse reads. The length will depends on amplicon size, primer trimming, and read length!
+Trim the forward and reverse reads. The length will depend on amplicon size, primer trimming, and read length!
 
 ```{r FilterAndTrim}
 
 #set the fwd and rev lengths to trim to; 
 fwd_len = 270
 rev_len = 220
+print(paste("Forward trim length set to", fwd_len, "and reverse trim length set to", rev_len))
 
 #make pre- and post-filter filenames and save output in filt dir
 metadata$R1.trim<-paste0(TRIM,"/",metadata$Sample_ID,".R1.fastq.gz")
@@ -277,7 +275,7 @@ metadata$R2.filt<-paste0(FILT,"/",metadata$Sample_ID,".filtered.R2.fastq.gz")
 if(!dir.exists(FILT)){
 dir.create(FILT)
 
-#call filter function to trim lengths, filer out poor quality bases, and remove phix
+#call filter function to trim lengths, filter out poor quality bases, and remove phix
 filt.sum<-filterAndTrim(metadata$R1.trim, metadata$R1.filt, 
                         metadata$R2.trim, metadata$R2.filt, 
                         truncLen=c(fwd_len, rev_len),
@@ -289,9 +287,6 @@ filt.sum<-filterAndTrim(metadata$R1.trim, metadata$R1.filt,
                         multithread=TRUE
                         )
 }
-
-print(paste("Forward trim length set to", fwd_len, "and reverse trim length set to", rev_len))
-
 ```
 
 ***
@@ -318,7 +313,6 @@ saveRDS(R2.errprofile,paste0(INTERIM,"/R2.errprofile.RDS"))
 #plot the fwd and rev error profiles
 plotErrors(R1.errprofile, nominalQ=TRUE) + ggtitle("Forward Error Profile") + theme_bw()
 plotErrors(R2.errprofile, nominalQ=TRUE) + ggtitle("Reverse Error Profile") + theme_bw()
-
 ```
 
 ***
@@ -328,7 +322,7 @@ Dereplicate forward and reverse reads
 
 ```{r Dereplication}
 
-#if they do not exist, generate the deplicated reads 
+#if they do not exist, generate the dereplicated reads 
 if(!file.exists(paste0(INTERIM,"/derepRs.RDS"))){
 derepFs <- derepFastq(metadata$R1.filt, verbose=TRUE)
 derepRs <- derepFastq(metadata$R2.filt, verbose=TRUE)
@@ -343,7 +337,6 @@ saveRDS(derepRs, paste0(INTERIM,"/derepRs.RDS"))
   derepFs<-readRDS(paste0(INTERIM,"/derepFs.RDS"))
   derepRs<-readRDS(paste0(INTERIM,"/derepRs.RDS"))
 }
-
 ```
 
 ***
@@ -366,7 +359,6 @@ saveRDS(dadaRs, paste0(INTERIM,"/dadaRs.RDS"))
   dadaFs<-readRDS(paste0(INTERIM,"/dadaFs.RDS"))
   dadaRs<-readRDS(paste0(INTERIM,"/dadaRs.RDS"))
 }
-
 ```
 
 ***
@@ -381,11 +373,10 @@ if(!file.exists(paste0(INTERIM,"/mergers.RDS"))){
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 saveRDS(mergers, paste0(INTERIM,"/mergers.RDS"))
 
-#use the denoised reads if they have been previously generated and saved
+#use the merged reads if they have been previously generated and saved
 } else {
 mergers<-readRDS(paste0(INTERIM,"/mergers.RDS"))
 }
-
 ```
 
 ***
@@ -398,7 +389,6 @@ Make table of sequence variants from the merged reads
 #make the sequence variant table from merged reads
 SVs.w.chim<-makeSequenceTable(mergers)
 print(paste("There are", ncol(SVs.w.chim),"SVs in", nrow(SVs.w.chim), "Samples"))
-
 ```
 
 ***
@@ -412,7 +402,6 @@ Removing chimeras
 SVtable<- removeBimeraDenovo(SVs.w.chim, method="consensus", multithread=TRUE, verbose=TRUE)
 print(paste("After chimera removal, there are", ncol(SVtable),"SVs in", nrow(SVtable), "Samples with the following size distribution:"))
 table(nchar(getSequences(SVtable)))
-
 ```
 
 ***
@@ -435,7 +424,6 @@ print(paste("Removed", ncol(SVtable)-ncol(SizeSelect), "Sequence Variants of", n
 SVtable<-SizeSelect
 print(paste("Post size selection, the size distribution is now:"))
 table(nchar(getSequences(SVtable)))
-
 ```
 
 ***
@@ -452,7 +440,6 @@ readplot<-melt(metadata, id.vars=c("Sample_ID","Sample_Plate"), measure.vars=c("
 
 #plot read loss/retention at each step
 ggplot(readplot, aes(x=Step, y=ReadNumber, group=Sample_ID, color=Sample_Plate)) + geom_violin(aes(group=Step), alpha=0.2) + geom_line(alpha=0.5) + theme_bw()
-
 ```
 
 ***
@@ -488,7 +475,6 @@ frac$Level<-factor(frac$Level, levels=c("Kingdom","Phylum","Class","Order","Fami
 
 #plot fraction of sequence variants assigned at given taxonomic level
 ggplot(frac, aes(x=Level, y=Assigned)) + geom_bar(stat="identity") + ggtitle("Fraction SVs assigned Taxonomy") + theme_bw() + ylab("% Assigned")
-
 ```
 
 Now transpose SV table for future use
@@ -498,7 +484,6 @@ Now transpose SV table for future use
 #transpose SV table and save
 SVtable<-t(SVtable)
 saveRDS(SVtable,paste0(INTERIM,"/SVtable.RDS"))
-
 ```
 
 ***
