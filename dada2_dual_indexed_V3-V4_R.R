@@ -1,4 +1,3 @@
-
 #import environment variables from the shell
 PROJECTNAME=Sys.getenv("PROJECTNAME")
 WORKDIR=Sys.getenv("WORKDIR")
@@ -31,7 +30,6 @@ require(stringr)
 dir.create(INTERIM)
 setwd(WORKDIR)
 print(sessionInfo())
-
 
 #------------------------------------------------
 
@@ -77,7 +75,6 @@ print(ddply(metadata, c("Sample_Plate"), summarize,
 print("The following samples were not returned by Illumina Demultiplexing, check their barcodes:")
 print(metadata[is.na(R1)])
 
-
 #------------------------------------------------
 
 ## 1.3 Adapter Removal
@@ -114,7 +111,6 @@ metadata$Trimmed.NRead<-sapply(paste0(TRIM,"/",metadata$Sample_ID,".R1.fastq.gz"
 print("Summary of read number post trimming")
 print(metadata)
 
-
 #------------------------------------------------
 
 ## 1.4 Prefilter samples with low read numbers
@@ -128,7 +124,6 @@ print(paste("The following samples had less than", threshold, "reads and have be
 print(metadata[Trimmed.NRead < threshold])
 metadata<-metadata[Trimmed.NRead >= threshold]
 }
-
 
 #------------------------------------------------
 
@@ -144,7 +139,6 @@ samps<-sample(metadata$Sample_ID, subset_num, replace = F)
 #plot quality profile for fwd and rev reads
 #plotQualityProfile(paste0(TRIM, samps, ".R1.fastq.gz")) + ggtitle("Forward Qualities")
 #plotQualityProfile(paste0(TRIM, samps, ".R2.fastq.gz")) + ggtitle("Reverse Qualities")
-
 
 #------------------------------------------------
 
@@ -175,7 +169,6 @@ filt.sum<-filterAndTrim(metadata$R1.trim, metadata$R1.filt,
                         )
 }
 
-
 #------------------------------------------------
 
 ## 1.7 Error Profile Learning
@@ -198,7 +191,6 @@ saveRDS(R2.errprofile,paste0(INTERIM,"/R2.errprofile.RDS"))
 #plotErrors(R1.errprofile, nominalQ=TRUE) + ggtitle("Forward Error Profile") + theme_bw()
 #plotErrors(R2.errprofile, nominalQ=TRUE) + ggtitle("Reverse Error Profile") + theme_bw()
 
-
 #------------------------------------------------
 
 ## 1.8 Dereplication
@@ -219,7 +211,6 @@ saveRDS(derepRs, paste0(INTERIM,"/derepRs.RDS"))
   derepRs<-readRDS(paste0(INTERIM,"/derepRs.RDS"))
 }
 
-
 #------------------------------------------------
 
 ## 1.9 Denoising
@@ -238,7 +229,6 @@ saveRDS(dadaRs, paste0(INTERIM,"/dadaRs.RDS"))
   dadaRs<-readRDS(paste0(INTERIM,"/dadaRs.RDS"))
 }
 
-
 #------------------------------------------------
 
 ## 1.10 Sequence Overlap 
@@ -253,7 +243,6 @@ saveRDS(mergers, paste0(INTERIM,"/mergers.RDS"))
 mergers<-readRDS(paste0(INTERIM,"/mergers.RDS"))
 }
 
-
 #------------------------------------------------
 
 ## 1.11 Sequence Table
@@ -261,7 +250,6 @@ mergers<-readRDS(paste0(INTERIM,"/mergers.RDS"))
 #make the sequence variant table from merged reads
 SVs.w.chim<-makeSequenceTable(mergers)
 print(paste("There are", ncol(SVs.w.chim),"SVs in", nrow(SVs.w.chim), "Samples"))
-
 
 #------------------------------------------------
 
@@ -290,7 +278,6 @@ SVtable<-SizeSelect
 print(paste("Post size selection, the size distribution is now:"))
 table(nchar(getSequences(SVtable)))
 
-
 #------------------------------------------------
 
 ## 1.14 Read loss tracking
@@ -302,7 +289,6 @@ readplot<-melt(metadata, id.vars=c("Sample_ID","Sample_Plate"), measure.vars=c("
 
 #plot read loss/retention at each step
 #ggplot(readplot, aes(x=Step, y=ReadNumber, group=Sample_ID, color=Sample_Plate)) + geom_violin(aes(group=Step), alpha=0.2) + geom_line(alpha=0.5) + theme_bw()
-
 
 #------------------------------------------------
 
@@ -339,7 +325,6 @@ frac$Level<-factor(frac$Level, levels=c("Kingdom","Phylum","Class","Order","Fami
 #transpose SV table for later use and save
 SVtable<-t(SVtable)
 saveRDS(SVtable,paste0(INTERIM,"/SVtable.RDS"))
-
 
 #------------------------------------------------
 

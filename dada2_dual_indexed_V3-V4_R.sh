@@ -19,9 +19,9 @@ echo "$(date)	Assuming overlapping V3-V4 reads with primer sequences still embed
 #Pipeline has been updated to version 1.5.2 of dada2 installed from github
 
 export PROJECTNAME="test"
-export WORKDIR="~/testing/16S_pipeline/"             #"~/Research/MHGEP/MGHEP_16S/" #working directory
+export WORKDIR="~/testing/16S_pipeline_1/"          #working directory
 export READS="reads/"                               #name of read folder from Basespace folder
-export SAMPLESHEET="sample_sheet_trunc.csv"          #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
+export SAMPLESHEET="sample_sheet_trunc.csv"         #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
 export TRIM="TrimmedSeqs/"                          #name of folder for trimmed sequences from cutadapt
 export FILT="FilteredSeqs/"                         #name of folder for filtered sequences from dada2
 export INTERIM="RDS/"                               #name of folder for staging temp files
