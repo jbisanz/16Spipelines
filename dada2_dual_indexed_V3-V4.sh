@@ -19,9 +19,9 @@ echo "$(date)	Assuming overlapping V3-V4 reads with primer sequences still embed
 #Pipeline has been updated to version 1.5.2 of dada2 installed from github
 
 export PROJECTNAME="Test"
-export WORKDIR="~/work/"          #working directory
+export WORKDIR="."                                  #working directory
 export READS="reads/"                               #name of read folder from Basespace folder
-export SAMPLESHEET="sample_sheet.csv"         #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
+export SAMPLESHEET="sample_sheet.csv"               #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
 export TRIM="TrimmedSeqs/"                          #name of folder for trimmed sequences from cutadapt
 export FILT="FilteredSeqs/"                         #name of folder for filtered sequences from dada2
 export INTERIM="RDS/"                               #name of folder for staging temp files
@@ -200,8 +200,8 @@ x<-metadata[i,]
 #write results to log, delineating by sample id
 system(paste("echo \"==============================", x$Sample_ID, "==============================\" >> trimlog.txt"))
 
-#discard reads that do not have the primer seq
-system(paste0(CUTADAPT, " --discard-untrimmed --pair-filter=both --error-rate=0.1 --times=2",
+#discard reads that do not have the primer seq; 'pair-fiter=any' will discard the pair if either do not have primer
+system(paste0(CUTADAPT, " --discard-untrimmed --pair-filter=any --error-rate=0.1 --times=2",
 
               #trim the primer sequences used in the first-round PCR; g for fwd reads, G for rev reads
               " -g ^CCTACGGGNGGCWGCAG -G ^GACTACHVGGGTATCTAATCC",
