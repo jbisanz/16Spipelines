@@ -174,7 +174,7 @@ dir.create(TRIM)
 for (i in 1:nrow(metadata)){  
 x<-metadata[i,]
 system(paste("echo \"==============================", x$Sample_ID, "==============================\" >> trimlog.txt"))
-system(paste0(CUTADAPT, " --discard-untrimmed --pair-filter=both --error-rate=0.1 --times=2",
+system(paste0(CUTADAPT, " --discard-untrimmed --pair-filter=any --error-rate=0.1 --times=2",
               " -g ^GTGCCAGCMGCCGCGGTAA -G ^GGACTACHVGGGTWTCTAAT",
               " --output=",paste0(TRIM,"/",x$Sample_ID,".R1.fastq.gz"),
               " --paired-output=",paste0(TRIM,"/",x$Sample_ID,".R2.fastq.gz"),
