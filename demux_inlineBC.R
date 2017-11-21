@@ -1,7 +1,7 @@
 #Script to demultiplex inline barcodes on paired reads where structure is NNNN[8bp barcode]PrimerSeq
 #If other length primers are used then positions at line 55-64 will need to be altered
 #V1 J. Bisanz Nov 20
-#Run time for 24million reads with 24 CPUs with 4GB availble per CPU via a cluster node(dual Xeon E5-2680v4) with 256GB total RAM is
+#Run time for 24million reads with 24 CPUs with 4GB availble per CPU via a cluster node(dual Xeon E5-2680v4) with 256GB total RAM is 34min.
 #Limiting reagent appears to be reading/writing.
 
 V4F="GTGCCAGCMGCCGCGGTAA"
