@@ -16,6 +16,8 @@ echo "$(date)	Running DADA2 Pipeline v1.1 for demultiplexed sequences from Bases
 #Enter your settings below which will be exported to the environment for import to R
 #Pipeline has been updated to version 1.70 of dada2 installed from github
 
+export PATH=/netapp/home/jbisanz/bin/:$PATH
+
 export PL_PROJECTNAME="MHGEP_Microbiota"
 export PL_USERNAME="J. Bisanz"
 
