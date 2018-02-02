@@ -12,11 +12,11 @@
 #$ -pe smp 24
 
 echo "##################################################################################"
-echo "$(date)	Running DADA2 Pipeline v1.1 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
+echo "$(date)	Running DADA2 Pipeline v1.1.3 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
 #Enter your settings below which will be exported to the environment for import to R
 #Pipeline has been updated to version 1.70 of dada2 installed from github
 
-export PATH=/netapp/home/jbisanz/bin/:$PATH
+export PATH=/netapp/home/jbisanz/bin/:/turnbaugh/qb3share/shared_resources/bin/:$PATH
 
 export PL_PROJECTNAME="MHGEP_Microbiota"
 export PL_USERNAME="J. Bisanz"
