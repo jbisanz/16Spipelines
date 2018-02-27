@@ -12,18 +12,18 @@
 #$ -pe smp 24
 
 echo "##################################################################################"
-echo "$(date)	Running DADA2 Pipeline v1.1.3 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
+echo "$(date)	Running DADA2 Pipeline v1.1.4 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
 #Enter your settings below which will be exported to the environment for import to R
 #Pipeline has been updated to version 1.70 of dada2 installed from github
 
 export PATH=/netapp/home/jbisanz/bin/:/turnbaugh/qb3share/shared_resources/bin/:$PATH
 
-export PL_PROJECTNAME="MHGEP_Microbiota"
-export PL_USERNAME="J. Bisanz"
+export PL_PROJECTNAME="BHBexpt"
+export PL_USERNAME="qiyanang"
 
-export PL_WORKDIR="/turnbaugh/qb3share/jbisanz/MHGEP/" #The location where accessable from the QB3 cluster
-export PL_READS=$PL_WORKDIR/MGHEP-39797785/ #name of read folder from Basespace 
-export PL_SAMPLESHEET=$PL_WORKDIR/MGHEP_samplesheet.csv #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
+export PL_WORKDIR="/turnbaugh/qb3share/qiyanang/BHBexp/" #The location where accessable from the QB3 cluster
+export PL_READS=$PL_WORKDIR/180213_BHBexpt_basespace/BHBexpt-64928090/ #name of read folder from Basespace 
+export PL_SAMPLESHEET=$PL_WORKDIR/SampleSheet_Turnbaugh_QYA_16S_BHBexpts.csv #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
 
 export PL_FTRUNC=200 #Trim for forward read, this should be fairly optimized for V4 reads *This is after the primer is removed
 export PL_RTRUNC=180 #Trim for reverse read, this should be fairly optimized for V4 reads  *This is after the primer is removed
@@ -34,17 +34,18 @@ export PL_LENGTHVAR=0.03 #Fraction to allow length variation in (0.03 is 3%)
 export PL_FOR_PRIMER="GTGCCAGCMGCCGCGGTAA" #515F, replace if different primer
 export PL_REV_PRIMER="GGACTACHVGGGTWTCTAAT" #806R, replace if different primer
 
-export CLEANONEXIT="NO" #Should intermediate folders of trimmed and filtered reads be deleted on completion? YES/NO
+export CLEANONEXIT="YES" #Should intermediate folders of trimmed and filtered reads be deleted on completion? YES/NO
 
 ############################################################################################
 #Do not edit below unless you want to customize pipeline
 ############################################################################################
 
 echo "$(date)	Handing over to R"
-export R_LIBS="/netapp/home/jbisanz/R/x86_64-pc-linux-gnu-library/3.3/"
+#export R_LIBS="/netapp/home/jbisanz/R/x86_64-pc-linux-gnu-library/3.3/"
+export R_LIBS="/turnbaugh/qb3share/shared_resources/Rlibs/MRO3.3/"
+export R_LIBS_USER="/turnbaugh/qb3share/shared_resources/Rlibs/MRO3.3/"
 export OMP_NUM_THREADS=$NSLOTS
 module load MRO
-
 
 ###
 if [ -e ${PL_PROJECTNAME}.Rmd ]; then
@@ -52,9 +53,10 @@ if [ -e ${PL_PROJECTNAME}.Rmd ]; then
 	rm ${PL_PROJECTNAME}.Rmd
 fi
 
+
 cat >> ${PL_PROJECTNAME}.Rmd<<'EOF'
 ---
-title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC V1.1.nov9.2017")`'
+title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC V1.1.4.16feb2018")`'
 author: '`r Sys.getenv("PL_USERNAME")`'
 date: '`r format(Sys.time(), "%Y-%m-%d %H:%M")`'
 output: 
@@ -100,7 +102,6 @@ output:
 
 # 1. Variable Import
 
-
 ```{r setup, include=TRUE, message=F, warning=F}
 PROJECTNAME=Sys.getenv("PL_PROJECTNAME")
 WORKDIR=Sys.getenv("PL_WORKDIR")
@@ -115,7 +116,7 @@ REV_PRIMER=Sys.getenv("PL_REV_PRIMER")
 
 
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, tidy=TRUE, cache=FALSE, fig.width=10, fig.height=7.5)
-print(paste("Analysis started at", date()))
+message(paste("Analysis started at", date()))
 ```
 
 ### User Settings:
@@ -137,7 +138,8 @@ Please check above and ensure that the variables were set appropriately.
 
 library(foreach)
 library(doParallel)
-registerDoParallel(makeCluster(as.numeric(Sys.getenv("OMP_NUM_THREADS")))) #for parallel functions
+pcl<-makeCluster(as.numeric(Sys.getenv("OMP_NUM_THREADS")))
+registerDoParallel(pcl) #for parallel functions
 
 
 library(dada2) #version 1.7.0
@@ -160,7 +162,7 @@ dir.create("RDS")
 dir.create("Filtered_reads")
 dir.create("Trimmed_reads")
 dir.create("Outputs")
-print(sessionInfo())
+message(sessionInfo())
 ```
 
 ***
@@ -170,19 +172,21 @@ print(sessionInfo())
 ```{r MetadataAndDepth}
 metadata<-read_csv(SAMPLESHEET,skip = 19)
 
-reads<-tibble(FASTQs=list.files(READS, include.dirs = FALSE, recursive = TRUE)) %>%
-        mutate(Read=str_sub(FASTQs, -15) %>% str_sub(., 1, 2)) %>%
-        mutate(Sample_ID=gsub("-[0-9]+/..+fastq\\.gz", "", FASTQs)) %>%
+reads<-
+  tibble(FASTQs=list.files(READS, include.dirs = FALSE, recursive = TRUE)) %>%
+        mutate(Read=gsub("..+_(R[12])_[0-9]{3}\\.fastq\\.gz$","\\1", FASTQs)) %>%
+        mutate(Sample_ID=gsub("..+\\/(..+)_S[0-9]{1,3}_L[0-9]{3}_R[12]_[0-9]{3}\\.fastq\\.gz$","\\1", FASTQs)) %>%
+        mutate(Sample_ID=gsub("-","_", Sample_ID)) %>%
         spread(key="Read", value="FASTQs")
 
 metadata<-metadata %>% left_join(reads)
 
 if(nrow(metadata %>% filter(is.na(R1)))>0){
-  print("The following samples were not returned by Illumina demultiplexing, check their barcodes and that fastq file exists:")
+  message("The following samples were not returned by Illumina demultiplexing, check their barcodes and that fastq file exists:")
   metadata %>% filter(is.na(R1)) %>% MicrobeR::Nice.Table()
   metadata<-metadata %>% filter(!is.na(R1))
 } else {
-  print("All samples were returned from sequencing.")
+  message("All samples were returned from sequencing.")
 }
 
 ```
@@ -241,9 +245,9 @@ metadata<-metadata %>% left_join(ReadStatsDF)
 
 saveRDS(metadata, "RDS/adapter.RDS")
 
-print(paste("Adapter removal finished in", round(ADAPTERTIME), "seconds with an average of", round(mean(metadata$TrimmingLoss_Percent),1),"% reads remaining after trimming."))
+message(paste("Adapter removal finished in", round(ADAPTERTIME), "seconds with an average of", round(mean(metadata$TrimmingLoss_Percent),1),"% reads remaining after trimming."))
 } else {
-print("Adapters already removed...Skipping")
+message("Adapters already removed...Skipping")
 metadata<-readRDS("RDS/adapter.RDS")
 
 }
@@ -257,12 +261,12 @@ Removing all samples with less than 5000 reads before going forward as these wil
 
 ```{r Prefilter}
 if(!file.exists("RDS/prefilter.RDS")){
-print(paste("The following", nrow(metadata %>% filter(PostTrimming<=5000)),"samples had less than 5000 reads and have been discarded before moving forward"))
+message(paste("The following", nrow(metadata %>% filter(PostTrimming<=5000)),"samples had less than 5000 reads and have been discarded before moving forward"))
 metadata %>% filter(PostTrimming<=5000) %>% MicrobeR::Nice.Table()
 metadata<-metadata %>% filter(PostTrimming>5000)
 saveRDS(metadata, "RDS/prefilter.RDS")
 } else {
-print("Prefilter already done.")
+message("Prefilter already done.")
 metadata<-readRDS("RDS/prefilter.RDS")
 }
 
@@ -310,10 +314,10 @@ filt.sum<-filt.sum %>% as.data.frame %>%
 
 metadata<-metadata %>% left_join(filt.sum %>% mutate(Sample_ID=gsub("_R[12].fastq.gz","", Sample_ID)))
 metadata<-metadata %>% mutate(FilteringLoss_Percent=round(100*(PostFiltering/PreTrimming),1))
-print(paste("Quality filtering finished in", round(FILTERTIME), "seconds with an average of", round(mean(metadata$FilteringLoss_Percent),1),"% original reads remaining after quality filtering."))
+message(paste("Quality filtering finished in", round(FILTERTIME), "seconds with an average of", round(mean(metadata$FilteringLoss_Percent),1),"% original reads remaining after quality filtering."))
 saveRDS(metadata, "RDS/filtertrim.RDS")
 } else {
-	print("Filter and Trim already done.")
+	message("Filter and Trim already done.")
 	metadata<-readRDS("RDS/filtertrim.RDS")
 }
 
@@ -337,11 +341,11 @@ if(!file.exists("RDS/R1.errprofile.RDS") & !file.exists("RDS/R2.errprofile.RDS")
       saveRDS(R2.errprofile,paste0("RDS","/R2.errprofile.RDS"))
   })[3]  
   
-  print(paste("Error profile learning completed in", round(LEARNTIME), "seconds."))
+  message(paste("Error profile learning completed in", round(LEARNTIME), "seconds."))
 } else {
   R1.errprofile<-readRDS("RDS/R1.errprofile.RDS")
   R2.errprofile<-readRDS("RDS/R2.errprofile.RDS")
-  print("Error profiles loaded from disk.")
+  message("Error profiles loaded from disk.")
 }
 
 
@@ -367,11 +371,11 @@ DEREPTIME<-system.time({
     names(derepRs)<-gsub("_R2.fastq.gz","", names(derepRs))
       saveRDS(derepRs, paste0("RDS","/derepRs.RDS"))
 })[3]
-print(paste("Dereplication completed in", round(DEREPTIME), "seconds."))
+message(paste("Dereplication completed in", round(DEREPTIME), "seconds."))
 } else {
 	derepFs<-readRDS("RDS/derepFs.RDS")
 	derepRs<-readRDS("RDS/derepRs.RDS")
-	print("Dereplicated reads loaded from file.")
+	message("Dereplicated reads loaded from file.")
 }
 ```
 
@@ -390,12 +394,12 @@ DADATIME<-system.time({
   saveRDS(dadaRs, paste0("RDS","/dadaRs.RDS"))
 })[3]
 
-print(paste("Denoising completed in", round(DADATIME), "seconds."))
+message(paste("Denoising completed in", round(DADATIME), "seconds."))
 
 } else {
 	dadaFs<-readRDS("RDS/dadaFs.RDS")
 	dadaRs<-readRDS("RDS/dadaRs.RDS")
-	print("Denoised reads loaded from file.")
+	message("Denoised reads loaded from file.")
 	
 }
 ```
@@ -407,7 +411,7 @@ print(paste("Denoising completed in", round(DADATIME), "seconds."))
 ```{r Overlap}
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=F)
 saveRDS(mergers, "RDS/mergers.RDS")
-print(paste("A total of", sum(mergers$accept),"reads successfully overlapped"))
+message(paste("A total of", sum(mergers$accept),"reads successfully overlapped"))
 ```
 
 ***
@@ -421,7 +425,7 @@ AllowVar=as.numeric(LENGTHVAR)
 SVtable.unfilt<-makeSequenceTable(mergers)
 saveRDS(SVtable.unfilt,"RDS/SVtable.unfilt.RDS")
 
-print(paste("Before any filtering, there are", ncol(SVtable.unfilt),"SVs in", nrow(SVtable.unfilt), "samples with", sum(SVtable.unfilt), "reads."))
+message(paste("Before any filtering, there are", ncol(SVtable.unfilt),"SVs in", nrow(SVtable.unfilt), "samples with", sum(SVtable.unfilt), "reads."))
 
 metadata<-metadata %>% left_join(data.frame(PostOverlap=rowSums(SVtable.unfilt)) %>% rownames_to_column("Sample_ID"))
 
@@ -449,7 +453,7 @@ ggplotly(
 SVtable.sizetrim<- SVtable.unfilt[,nchar(colnames(SVtable.unfilt)) %in% seq(round(ExpectedSize*(1-AllowVar)),round(ExpectedSize*(1+AllowVar)))]
 metadata<-metadata %>% left_join(data.frame(PostSizeSelect=rowSums(SVtable.sizetrim)) %>% rownames_to_column("Sample_ID"))
 
-print(paste("After in silico selection there are", ncol(SVtable.sizetrim),"SVs in", nrow(SVtable.sizetrim), "samples with", sum(SVtable.sizetrim), "reads."))
+message(paste("After in silico selection there are", ncol(SVtable.sizetrim),"SVs in", nrow(SVtable.sizetrim), "samples with", sum(SVtable.sizetrim), "reads."))
 saveRDS(SVtable.sizetrim, "RDS/SVtable.sizetrim.RDS")
 ```
 
@@ -461,8 +465,8 @@ saveRDS(SVtable.sizetrim, "RDS/SVtable.sizetrim.RDS")
 Removing using pooled method.
 ```{r Chimeras}
 SVtable<- removeBimeraDenovo(SVtable.sizetrim, method="pooled", multithread=TRUE, verbose=TRUE)
-print(paste("Chimera removal removed", ncol(SVtable.sizetrim)-ncol(SVtable), "chimeras representing", round(100-100*(sum(SVtable)/sum(SVtable.sizetrim)),2), "% of all reads."))
-print(paste("After chimera removal, there are", ncol(SVtable),"SVs in", nrow(SVtable), "samples in", sum(SVtable), "reads."))
+message(paste("Chimera removal removed", ncol(SVtable.sizetrim)-ncol(SVtable), "chimeras representing", round(100-100*(sum(SVtable)/sum(SVtable.sizetrim)),2), "% of all reads."))
+message(paste("After chimera removal, there are", ncol(SVtable),"SVs in", nrow(SVtable), "samples in", sum(SVtable), "reads."))
 
 metadata<-metadata %>% left_join(data.frame(FinalReads=rowSums(SVtable)) %>% rownames_to_column("Sample_ID"))
 saveRDS(SVtable, "RDS/SVtable.final.RDS")
@@ -548,7 +552,7 @@ colnames(ggtaxonomy)<-taxlevels
 saveRDS(taxonomy, paste0("RDS","/taxonomy_silva128.RDS"))
 saveRDS(ggtaxonomy, paste0("RDS","/taxonomy_gg_13_8.RDS"))
 } else {
-	print("Taxonomic assignment loaded from file.")
+	message("Taxonomic assignment loaded from file.")
 	taxonomy<-readRDS("RDS/taxonomy_silva128.RDS")
 	ggtaxonomy<-readRDS("RDS/taxonomy_gg_13_8.RDS")
 }
@@ -636,7 +640,7 @@ metadata.final %>% select(Sample_ID, Percent_Chimera, SV_Richness, Shannon_Diver
   ggtitle("Alpha Diversity Distribution") +
   facet_wrap(~Metric, scales="free")
 
-saveRDS(metadata.final, paste0("RDS/",PROJECTNAME,".metadata.tsv"))
+saveRDS(metadata.final, paste0("RDS/",PROJECTNAME,".metadata.RDS"))
 write_tsv(metadata.final, paste0("Outputs/",PROJECTNAME,".metadata.tsv"))#write out final metadata that has alpha diversity metrics
 ```
 
@@ -664,7 +668,7 @@ tree<-phangorn::midpoint(tree)#midpoint root
 write.tree(tree, paste0("Outputs/",PROJECTNAME,".tree"))
 saveRDS(tree, "RDS/tree.RDS")
 
-print(paste("Tree built in", round(TREETIME), "seconds."))
+message(paste("Tree built in", round(TREETIME), "seconds."))
 }
 
 tree<-read.tree(paste0("Outputs/",PROJECTNAME,".tree"))
@@ -730,7 +734,7 @@ Looking for negative controls and germ-free mice by the sample IDs containing th
 
 control_samples<-metadata.final %>% filter(grepl("NTC", Sample_ID) | grepl("CON", Sample_ID) | grepl("GF", Sample_ID))
 
-if(nrow(control_samples)==0){print("No control samples found")} else {
+if(nrow(control_samples)==0){message("No control samples found")} else {
   tm<-metadata.final %>%
     mutate(Negative_Control=ifelse(Sample_ID %in% control_samples$Sample_ID, "Negative Control", "Sample"))
   ggplot(tm, aes(x=TabledReads)) +
@@ -753,7 +757,7 @@ ggplotly(
       scale_color_manual(values = c("indianred","cornflowerblue"))
 ) 
   
-  print("Closest matches to negative controls:")
+  message("Closest matches to negative controls:")
   as.data.frame(as.matrix(Bray)) %>% rownames_to_column("Sample_ID") %>%
   filter(Sample_ID %in% control_samples$Sample_ID) %>%
   gather(-Sample_ID, key="Closest_Match", value="BrayCurtisDism") %>%
@@ -775,7 +779,7 @@ Looking for controls containing the following: EXTSTD (ZYMO Community Standard D
 ```{r extstd}
 control_samples<-metadata.final %>% filter(grepl("EXTSTD", Sample_ID))
 
-if(nrow(control_samples)==0){print("No extraction standards found")} else{
+if(nrow(control_samples)==0){message("No extraction standards found")} else{
   theoretical<-read_excel("/turnbaugh/qb3share/shared_resources/Zymo_Standards/ZymoLotInfo.xlsx", sheet="CopyNumber")
   theoretical<-theoretical %>% select(Name, `16S_Perc`, Sequence, Sequence2)  %>%
                 gather(-Name, -`16S_Perc`, key="SequenceID", value="Seq") %>% filter(!is.na(Seq))
@@ -791,11 +795,14 @@ if(nrow(control_samples)==0){print("No extraction standards found")} else{
   
   theoretical<-theoretical[!duplicated(theoretical$Amplicon),]
   
-  controltab<-t(SVtable)[,control_samples$Sample_ID]
-  controltab<-apply(controltab, 2, function(x) 100*(x/sum(x)))
-  controltab<-controltab[rowSums(controltab)>0,] %>%
-  as.data.frame %>%
-    rownames_to_column("Amplicon") %>%
+  controltab<-t(SVtable) %>%
+  as.data.frame() %>%
+  rownames_to_column("Amplicon") %>%
+  dplyr::select(Amplicon, get(control_samples$Sample_ID)) %>%
+  mutate_at(control_samples$Sample_ID, function(x){100*(x/sum(x))}) %>%
+  gather(-Amplicon, key="SampleID", value="Percent") %>%
+  filter(Percent>0) %>%
+  spread(key="SampleID", value="Percent", fill=0) %>%
     left_join(theoretical %>% select(Name, `16S_Perc`, Amplicon) %>% dplyr::rename(Reference=`16S_Perc`)) %>%
     mutate(Name=replace(Name, is.na(Name), "Other")) %>%
     select(Name, Reference, get(control_samples$Sample_ID), Amplicon) %>%
@@ -824,7 +831,7 @@ ggplotly(
 )
 
 
-  print(paste("Average level of cross contamination in DNA extraction control samples is",
+  message(paste("Average level of cross contamination in DNA extraction control samples is",
               controltab %>%
                 select(-Reference) %>%
                 gather(-Name, key="sample", value="abundance") %>%
@@ -843,7 +850,7 @@ ggplotly(
 ```{r dnastd}
 control_samples<-metadata.final %>% filter(grepl("DNASTD", Sample_ID))
 
-if(nrow(control_samples)==0){print("No DNA standards found")} else{
+if(nrow(control_samples)==0){message("No DNA standards found")} else{
   theoretical<-read_excel("/turnbaugh/qb3share/shared_resources/Zymo_Standards/ZymoLotInfo.xlsx", sheet="CopyNumber")
   theoretical<-theoretical %>% select(Name, `16S_Perc`, Sequence, Sequence2)  %>%
                 gather(-Name, -`16S_Perc`, key="SequenceID", value="Seq") %>% filter(!is.na(Seq))
@@ -859,11 +866,14 @@ if(nrow(control_samples)==0){print("No DNA standards found")} else{
   
   theoretical<-theoretical[!duplicated(theoretical$Amplicon),]
   
-  controltab<-t(SVtable)[,control_samples$Sample_ID]
-  controltab<-apply(controltab, 2, function(x) 100*(x/sum(x)))
-  controltab<-controltab[rowSums(controltab)>0,] %>%
-  as.data.frame %>%
-    rownames_to_column("Amplicon") %>%
+  controltab<-t(SVtable) %>%
+  as.data.frame() %>%
+  rownames_to_column("Amplicon") %>%
+  dplyr::select(Amplicon, get(control_samples$Sample_ID)) %>%
+  mutate_at(control_samples$Sample_ID, function(x){100*(x/sum(x))}) %>%
+  gather(-Amplicon, key="SampleID", value="Percent") %>%
+  filter(Percent>0) %>%
+  spread(key="SampleID", value="Percent", fill=0) %>%
     left_join(theoretical %>% select(Name, `16S_Perc`, Amplicon) %>% dplyr::rename(Reference=`16S_Perc`)) %>%
     mutate(Name=replace(Name, is.na(Name), "Other")) %>%
     select(Name, Reference, get(control_samples$Sample_ID), Amplicon) %>%
@@ -891,7 +901,7 @@ ggplotly(
    ggtitle("PCR Control Composition")
 )
 
-  print(paste("Average level of cross contamination in DNA extraction control samples is",
+  message(paste("Average level of cross contamination in DNA extraction control samples is",
               controltab %>%
                 select(-Reference) %>%
                 gather(-Name, key="sample", value="abundance") %>%
@@ -932,14 +942,16 @@ if(nrow(control_samples)>0 & Primer_For=="GTGCCAGCMGCCGCGGTAA" & Primer_Rev=="GG
     geom_abline(color="red", linetype="dashed") +
     theme_bw() +
     xlab("% Abundance Reference") +
-    ylab("% Abundance Sample")
+    ylab("% Abundance Sample") +
+    scale_x_log10() +
+    scale_y_log10()
 }else{
-	print("No DNA standards found or V4 primers not used")
+	message("No DNA standards found or V4 primers not used")
 }
 ```
 
 ```{r}
-print(paste("Analysis finished at", date()))
+message(paste("Analysis finished at", date()))
 ```
 
 ***
