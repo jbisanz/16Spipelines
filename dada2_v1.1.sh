@@ -12,18 +12,18 @@
 #$ -pe smp 24
 
 echo "##################################################################################"
-echo "$(date)	Running DADA2 Pipeline v1.1.51 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
+echo "$(date)	Running DADA2 Pipeline v1.1.52 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
 #Enter your settings below which will be exported to the environment for import to R
 #Pipeline has been updated to version 1.70 of dada2 installed from github
 
 export PATH=/netapp/home/jbisanz/bin/:/turnbaugh/qb3share/shared_resources/bin/:$PATH
 
-export PL_PROJECTNAME="BHBexpt"
-export PL_USERNAME="qiyanang"
+export PL_PROJECTNAME="16S_VEMA"
+export PL_USERNAME="vescalante"
 
-export PL_WORKDIR="/turnbaugh/qb3share/qiyanang/BHBexp/" #The location where accessable from the QB3 cluster
-export PL_READS=$PL_WORKDIR/180213_BHBexpt_basespace/BHBexpt-64928090/ #name of read folder from Basespace 
-export PL_SAMPLESHEET=$PL_WORKDIR/SampleSheet_Turnbaugh_QYA_16S_BHBexpts.csv #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
+export PL_WORKDIR="/turnbaugh/qb3share/vescalante/VEMA-16S" #The location where accessable from the QB3 cluster
+export PL_READS=$PL_WORKDIR/20180318_16S_basespace/HMDP_Statin_MICE-65576716/ #name of read folder from Basespace 
+export PL_SAMPLESHEET=$PL_WORKDIR/SampleSheet_Statin_TNFa_MICE.csv #illumina sample sheet from sequencer, the result of MakeSampleSheet.R
 
 export PL_FTRUNC=200 #Trim for forward read, this should be fairly optimized for V4 reads *This is after the primer is removed
 export PL_RTRUNC=180 #Trim for reverse read, this should be fairly optimized for V4 reads  *This is after the primer is removed
@@ -35,6 +35,7 @@ export PL_FOR_PRIMER="GTGCCAGCMGCCGCGGTAA" #515F, replace if different primer
 export PL_REV_PRIMER="GGACTACHVGGGTWTCTAAT" #806R, replace if different primer
 
 export CLEANONEXIT="YES" #Should intermediate folders of trimmed and filtered reads be deleted on completion? YES/NO
+
 
 ############################################################################################
 #Do not edit below unless you want to customize pipeline
@@ -56,7 +57,7 @@ fi
 
 cat >> ${PL_PROJECTNAME}.Rmd<<'EOF'
 ---
-title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC V1.1.51.21mar2018")`'
+title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC v1.1.52.21mar2018")`'
 author: '`r Sys.getenv("PL_USERNAME")`'
 date: '`r format(Sys.time(), "%Y-%m-%d %H:%M")`'
 output: 
@@ -965,7 +966,7 @@ if(nrow(control_samples)>0 & Primer_For=="GTGCCAGCMGCCGCGGTAA" & Primer_Rev=="GG
   hum3$HUMSTD_reference<-100*(hum3$HUMSTD_reference/sum(hum3$HUMSTD_reference))
   hum3<-hum3 %>% filter(!is.na(HUMSTD_reference))
   
-  merger<-t(SVtable)[,control_samples$Sample_ID] %>% data.frame %>% rownames_to_column("SV") %>%
+  merger<-t(SVtable) %>% as.data.frame %>% dplyr::select(get(control_samples$Sample_ID)) %>% rownames_to_column("SV") %>%
     full_join(hum3)
 
   matr<-merger[,c("SV","HUMSTD_reference", control_samples$Sample_ID)] %>% data.frame %>% column_to_rownames("SV")
