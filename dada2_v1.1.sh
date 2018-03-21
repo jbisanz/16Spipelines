@@ -12,7 +12,7 @@
 #$ -pe smp 24
 
 echo "##################################################################################"
-echo "$(date)	Running DADA2 Pipeline v1.1.52 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
+echo "$(date)	Running DADA2 Pipeline v1.1.53 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
 #Enter your settings below which will be exported to the environment for import to R
 #Pipeline has been updated to version 1.70 of dada2 installed from github
 
@@ -57,7 +57,7 @@ fi
 
 cat >> ${PL_PROJECTNAME}.Rmd<<'EOF'
 ---
-title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC v1.1.52.21mar2018")`'
+title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC v1.1.53.21mar2018")`'
 author: '`r Sys.getenv("PL_USERNAME")`'
 date: '`r format(Sys.time(), "%Y-%m-%d %H:%M")`'
 output: 
@@ -859,6 +859,8 @@ if(nrow(control_samples)==0){print("No extraction standards found")} else{
 controltab %>% left_join(taxonomy %>% as.data.frame %>% rownames_to_column("Amplicon")) %>% MicrobeR::Nice.Table()
 controltab<-controltab %>% select(-Amplicon) %>% group_by(Name) %>% summarize_all(sum)
 
+write_tsv(controltab,"Outputs/EXTstd_reference.txt")
+
 ggplotly(
  controltab%>%
   mutate(Name=factor(Name, levels=rev(levels(Name)))) %>%
@@ -931,6 +933,9 @@ if(nrow(control_samples)==0){message("No DNA standards found")} else{
 controltab %>% left_join(taxonomy %>% as.data.frame %>% rownames_to_column("Amplicon")) %>% MicrobeR::Nice.Table()
 controltab<-controltab %>% select(-Amplicon) %>% group_by(Name) %>% summarize_all(sum)
 
+write_tsv(controltab,"Outputs/DNAstd_reference.txt")
+
+
 ggplotly(
  controltab%>%
   mutate(Name=factor(Name, levels=rev(levels(Name)))) %>%
@@ -974,6 +979,8 @@ if(nrow(control_samples)>0 & Primer_For=="GTGCCAGCMGCCGCGGTAA" & Primer_Rev=="GG
   matr<-matr[rowSums(matr)>0,]
   matr<-apply(matr, 2, function(x) 100*(x/sum(x)))
   matr<-matr %>% as.data.frame %>% rownames_to_column("SV")
+  
+  write_tsv(matr,"Outputs/human_reference.txt")
   
   matr %>% gather(-SV, -HUMSTD_reference, key="Sample",value="Abundance") %>%
     ggplot(aes(x=HUMSTD_reference, y=Abundance)) +
