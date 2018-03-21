@@ -12,7 +12,7 @@
 #$ -pe smp 24
 
 echo "##################################################################################"
-echo "$(date)	Running DADA2 Pipeline v1.1.5 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
+echo "$(date)	Running DADA2 Pipeline v1.1.51 for demultiplexed sequences from Basespace on node $(hostname) using $NSLOTS CPUs"
 #Enter your settings below which will be exported to the environment for import to R
 #Pipeline has been updated to version 1.70 of dada2 installed from github
 
@@ -56,7 +56,7 @@ fi
 
 cat >> ${PL_PROJECTNAME}.Rmd<<'EOF'
 ---
-title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC V1.1.4.16feb2018")`'
+title: '`r paste0("Project:", Sys.getenv("PL_PROJECTNAME"),": Read processing and QC V1.1.51.21mar2018")`'
 author: '`r Sys.getenv("PL_USERNAME")`'
 date: '`r format(Sys.time(), "%Y-%m-%d %H:%M")`'
 output: 
@@ -312,7 +312,7 @@ filt.sum<-filterAndTrim(fwd=paste0("Trimmed_reads/",metadata$Sample_ID,"_R1.fast
                         truncQ=2,
                         rm.phix=TRUE,
                         compress=TRUE,
-                        multithread=FALSE
+                        multithread=TRUE
                         )
 })[3]
 
