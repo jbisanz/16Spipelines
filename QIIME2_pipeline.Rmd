@@ -34,7 +34,7 @@ Modify the `User Parameters` section below to your liking. Then copy and paste t
 #$ -pe smp 24
 
 # User Parameters--------
-export READS=demultiplexed
+export READS=demultiplexed #a directory containing your demultiplexed reads, can be in any subdirectory structure
 export TRIMADAPTERS=false #Set to true if primer is in sequence and needs to be removed
 export Fprimer="GTGCCAGCMGCCGCGGTAA" #515F, replace if different primer
 export Rprimer="GGACTACHVGGGTWTCTAAT" #806R, replace if different primer
