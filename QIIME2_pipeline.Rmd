@@ -1,0 +1,364 @@
+---
+title: "QIIME2 2019.1 Processing Pipeline v0.1"
+date: 'Run at `r format(Sys.time(), "%Y-%m-%d %H:%M")`'
+output: 
+  html_document:
+    code_folding: show
+    theme: spacelab
+    highlight: monochrome
+    fig_width: 11
+    fig_height: 8.5
+    toc: true
+    toc_float: true
+---
+
+# Instructions and User Parameters
+
+Modify the `User Parameters` section below to your liking. Then copy and paste the following into your chef.compbio.ucsf.edu session:
+
+```{bash, eval=F}
+#start copy at cat on the line below excluding the #
+
+#cat > qsubmit.sh<<'EOF'
+#!/bin/bash
+#$ -S /bin/bash
+#$ -o qiime2.log
+#$ -e qiime2.err
+#$ -cwd
+#$ -r y
+#$ -j y
+#$ -l mem_free=4G
+#$ -l arch=linux-x64
+#$ -l netapp=1G,scratch=20G
+#$ -l h_rt=96:0:0
+#$ -pe smp 24
+
+# User Parameters--------
+export READS=demultiplexed
+export TRIMADAPTERS=false #Set to true if primer is in sequence and needs to be removed
+export Fprimer="GTGCCAGCMGCCGCGGTAA" #515F, replace if different primer
+export Rprimer="GGACTACHVGGGTWTCTAAT" #806R, replace if different primer
+export TruncF=220 #equivalent to p-trunc-len-f
+export TruncR=150 #equivalent to p-trunc-len-r
+export TrimL=5 #equivalent to trim-left-f
+export TrimR=5 #equivalent to trim-left-r
+
+#------------------------
+
+echo $(date) Running on $(hostname)
+echo $(date) Loading QIIME2 environment
+export PATH=/turnbaugh/qb3share/shared_resources/qiime2/condabin/conda:$PATH
+conda activate qiime2-2019.1
+export TMPDIR=/scratch/Q2-tmp
+mkdir $TMPDIR
+export R_LIBS=$R_LIBS_USER # need to bypass our MRO libraries
+Rscript -e "rmarkdown::render('QIIME2_pipeline.Rmd')"
+rm qsubmit.sh
+EOF
+qsub qsubmit.sh
+# end copy here
+
+```
+
+### !!!Do not modify below unless you want to tweek the processing.!!!
+
+```{r nicetablefun, eval=T, echo=F}
+Interactive.Table<-function(x){
+  return(DT::datatable(x, extensions='Buttons', filter="top", options=list(pageLength=10, dom='Bfrtip', buttons=c('copy','csv','excel', 'pdf') )))
+}
+```
+
+***
+
+# System set up
+
+```{r sysset, message=F, warning=F}
+library(dplyr)
+library(tibble)
+library(readr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(ggtree)
+library(dada2)
+library(qiime2R)
+sessionInfo()
+getwd()
+```
+
+## Directories
+
+```{r dirset}
+dir.create("Intermediates", showWarnings=FALSE)
+dir.create("Output", showWarnings=FALSE)
+dir.create("figures", showWarnings=FALSE)
+```
+
+***
+
+# Import Samples
+
+```{r manifestbuild}
+manifest<-
+  tibble(Read=list.files(Sys.getenv("READS"), recursive = TRUE, full.names = TRUE)) %>%
+  mutate(Sample=basename(Read) %>% gsub("_S[0-9]{1,3}_R[0-9]_[0-9]{3}\\.fastq\\.gz","", .)) %>%
+  mutate(Direction=case_when(
+    grepl("_R1_", .$Read) ~ "forward",
+    grepl("_R2_", .$Read) ~ "reverse"
+  )) %>%
+  arrange(Sample) %>%
+  mutate(Read=paste0(getwd(),"/", Read)) %>%
+  select(`sample-id`=Sample, `absolute-filepath`=Read, direction=Direction) %>%
+  filter(`sample-id`!="Undetermined")
+
+write_csv(manifest,"Intermediates/manifest.csv")
+
+Interactive.Table(manifest)
+```
+
+## Read quality
+
+```{r plotreadqual}
+qcsamps<-manifest %>% filter(`sample-id` %in% sample(manifest$`sample-id`, 3)) %>% pull(`absolute-filepath`)
+plotQualityProfile(qcsamps)
+ggsave("figures/ReadQuality.pdf", device="pdf", height=8.5, width=11)
+```
+
+
+## Generate Read Artifact
+
+```{bash makereads}
+if [ ! -f $PWD/Intermediates/Reads.qza ]; then
+  echo $(date) Generating Read Artifact
+  
+  qiime tools import \
+    --type 'SampleData[PairedEndSequencesWithQuality]' \
+    --input-path $PWD/Intermediates/manifest.csv \
+    --output-path $PWD/Intermediates/Reads.qza \
+    --input-format PairedEndFastqManifestPhred33
+    
+else
+    echo $(date) Skipping making Read Artifact as already complete
+fi
+```
+
+## Primer Trimming
+
+```{bash primertrim}
+if $TRIMADAPTERS; then
+echo $(date) Trimming adapters
+
+  qiime cutadapt trim-paired \
+    --i-demultiplexed-sequences $PWD/Intermediates/Reads.qza \
+    --p-cores $NSLOTS \
+    --p-front-f $Fprimer \
+    --p-front-r $Rprimer \
+    --p-match-adapter-wildcards \
+    --o-trimmed-sequences $PWD/Intermediates/Reads_filt.qza
+else
+  echo $(date) NOT trimming adapters
+  mv $PWD/Intermediates/Reads.qza $PWD/Intermediates/Reads_filt.qza
+fi
+
+```
+
+***
+
+# Dada2 and Feature Table Building
+
+```{bash dada2}
+
+if [ ! -f $PWD/Output/Dada_stats.qza ]; then
+  echo $(date) Running Dada2
+  
+  qiime dada2 denoise-paired \
+    --i-demultiplexed-seqs $PWD/Intermediates/Reads_filt.qza \
+    --p-trunc-len-f $TruncF \
+    --p-trunc-len-r $TruncR \
+    --p-trim-left-f $TrimL \
+    --p-trim-left-r $TrimR \
+    --p-n-threads $NSLOTS \
+    --o-table $PWD/Output/SVtable_nofilt.qza \
+    --o-representative-sequences $PWD/Output/SVsequences.qza \
+    --o-denoising-stats $PWD/Output/Dada_stats.qza \
+    --verbose
+    
+    qiime feature-table filter-samples \
+     --i-table SVtable_nofilt.qza \
+     --p-min-features 1 \
+     --o-filtered-table SVtable.qza
+    
+else
+  echo $(date) Skipping Dada2 as already complete
+fi
+```
+
+## Read Tracking
+
+```{r readtracking}
+counts<-read_qza("Output/Dada_stats.qza")
+
+Interactive.Table(counts$data)
+
+counts<-counts$data %>%
+  rownames_to_column("SampleID") %>%
+  gather(-SampleID, key="Step", value="Reads") %>%
+  mutate(Step=factor(Step, levels=c("input", "filtered","denoised","non.chimeric"))) %>%
+  ggplot(aes(x=Step, y=Reads, group=SampleID, label=SampleID)) +
+  geom_line() +
+  theme_bw()
+
+ggplotly(counts)
+ggsave("figures/ReadLoss.pdf", counts, device="pdf", useDingbats=F, height=8.5, width=11)
+```
+
+## Read Count Distribution
+
+```{r countdist}
+counts<-read_qza("Output/Dada_stats.qza")
+
+ggplot(data.frame(Nread=counts$data$non.chimeric), aes(x=Nread)) +
+  geom_freqpoly() +
+  theme_bw() +
+  xlab("# reads") +
+  ylab("# samples")
+ggsave("figures/ReadDistribution.pdf",device="pdf", useDingbats=F, height=8.5, width=11)
+
+```
+
+## SV size Distribution
+
+```{r svsizedist}
+seqs<-read_qza("Output/SVsequences.qza")
+summary(sapply(as.character(seqs$data), nchar))
+ggplot(data.frame(Length=sapply(as.character(seqs$data), nchar)), aes(x=Length)) +
+  geom_freqpoly() +
+  theme_bw() +
+  xlab("# bp") +
+  ylab("# SVs")
+ggsave("figures/SVsizedistribution.pdf",device="pdf", useDingbats=F, height=8.5, width=11)
+```
+
+***
+
+# Taxonomic Assignment
+
+## QIIME feature-classifier
+
+```{bash q2tax}
+if [ ! -f $PWD/Output/SV_taxonomy_QIIME.qza ]; then
+  echo $(date) Assignning Taxonomy with QIIME2
+  
+  qiime feature-classifier classify-sklearn \
+    --i-classifier /turnbaugh/qb3share/shared_resources/databases/silva-132-99-515-806-nb-classifier.qza \
+    --i-reads $PWD/Output/SVsequences.qza \
+    --o-classification $PWD/Output/SV_taxonomy_QIIME.qza \
+    --p-n-jobs 4
+else
+  echo $(date) Skipping QIIME2 taxonomy as already complete
+fi
+
+```
+
+## Dada2 feature-classifier
+
+```{r dadatax}
+if(!file.exists("Output/SV_taxonomy_Dada2.txt")){
+  message(date(), " Assigning taxonomy with dada2")
+  seqs<-read_qza("Output/SVsequences.qza")$data
+  taxonomy <- assignTaxonomy(as.character(seqs), "/turnbaugh/qb3share/shared_resources/databases/dada2_training_sets/silva_nr_v128_train_set.fa.gz", multithread=12)
+  taxonomy <- addSpecies(taxonomy, "/turnbaugh/qb3share/shared_resources/databases/dada2_training_sets/silva_species_assignment_v128.fa.gz", allowMultiple=TRUE)
+  write_tsv(as.data.frame(taxonomy), "Output/SV_taxonomy_Dada2.txt")
+} else {
+    message(date(), " Skipping Dada2 taxonomy as already complete")
+}
+```
+
+
+***
+
+# Build Phylogenies
+
+
+## De Novo
+
+```{bash denovo}
+if [ ! -f $PWD/Output/SVtree_denovo.qza ]; then
+  echo $(date) Building Tree denovo
+  
+  qiime phylogeny align-to-tree-mafft-fasttree \
+    --i-sequences $PWD/Output/SVsequences.qza \
+    --o-alignment $PWD/Output/SVsequences_aligned.qza \
+    --o-masked-alignment $PWD/Output/SVsequences_aligned_masked.qza \
+    --o-tree $PWD/Output/SVtree_unrooted.qza \
+    --o-rooted-tree $PWD/Output/SVtree_denovo.qza \
+    --p-n-threads $NSLOTS
+    
+else
+  echo $(date) Skipping making Tree as already complete
+fi
+```
+
+
+```{r plotdenovo}
+tree<-read_qza("Output/SVtree_denovo.qza")$data
+gtree<-ggtree(tree)
+gtree<-gtree %<+% (tibble(Tip=tree$tip.label) %>% mutate(Type=case_when(grepl("[A-z]", Tip)~"User", TRUE~"Reference"))) 
+gtree +
+  geom_tippoint(aes(alpha=Type), color="indianred") +
+  scale_alpha_manual(values=c(1, 1))
+ggsave("figures/Tree_DeNovo.pdf",device="pdf", useDingbats=F, height=8.5, width=11)
+```
+
+
+## Fragment Insertion
+
+```{bash sepp}
+if [ ! -f $PWD/Output/SVtree_inserted.qza ]; then
+  echo $(date) Building Tree with SEPP
+  
+  qiime fragment-insertion sepp \
+    --i-representative-sequences $PWD/Output/SVsequences.qza \
+    --p-threads $NSLOTS \
+    --o-tree $PWD/Output/SVtree_inserted.qza \
+    --o-placements $PWD/Output/SVplacements.qza \
+    --verbose
+    
+else
+  echo $(date) Skipping making Tree as already complete
+fi
+```
+
+```{r plotsepp}
+tree<-read_qza("Output/SVtree_inserted.qza")$data
+gtree<-ggtree(tree)
+gtree<-gtree %<+% (tibble(Tip=tree$tip.label) %>% mutate(Type=case_when(grepl("[A-z]", Tip)~"User", TRUE~"Reference"))) 
+gtree +
+  geom_tippoint(aes(alpha=Type), color="indianred") +
+  scale_alpha_manual(values=c(0, 1))
+ggsave("figures/Tree_Insertion.pdf",device="pdf", useDingbats=F, height=8.5, width=11)
+```
+
+***
+
+# Clean Up
+
+Removing the Read artifacts to avoid double storage of the sequencing data.
+
+```{bash}
+rm -r Intermediates
+```
+
+***
+
+Pipeline complete. Additional QC may be required.
+
+Desired files for downstream analysis that can be read directly into R (using `qiime2R::read_qza("artifact.qza")` for qza files):
+
+* SVtable.qza
+* SVsequences.qza
+* SV_taxonomy_Dada2.txt
+* SVtree_denovo.qza
+
+***
+
