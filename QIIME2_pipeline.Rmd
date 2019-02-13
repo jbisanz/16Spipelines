@@ -184,9 +184,9 @@ if [ ! -f $PWD/Output/Dada_stats.qza ]; then
     --verbose
     
     qiime feature-table filter-samples \
-     --i-table SVtable_nofilt.qza \
+     --i-table $PWD/Output/SVtable_nofilt.qza \
      --p-min-features 1 \
-     --o-filtered-table SVtable.qza
+     --o-filtered-table $PWD/Output/SVtable.qza
     
 else
   echo $(date) Skipping Dada2 as already complete
