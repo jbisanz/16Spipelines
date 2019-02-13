@@ -35,7 +35,7 @@ Modify the `User Parameters` section below to your liking. Then copy and paste t
 
 # User Parameters--------
 export READS=demultiplexed #a directory containing your demultiplexed reads, can be in any subdirectory structure
-export TRIMADAPTERS=false #Set to true if primer is in sequence and needs to be removed
+export TRIMADAPTERS=true #Set to true if primer is in sequence and needs to be removed
 export Fprimer="GTGCCAGCMGCCGCGGTAA" #515F, replace if different primer
 export Rprimer="GGACTACHVGGGTWTCTAAT" #806R, replace if different primer
 export TruncF=220 #equivalent to p-trunc-len-f
@@ -49,8 +49,8 @@ echo $(date) Running on $(hostname)
 echo $(date) Loading QIIME2 environment
 export PATH=/turnbaugh/qb3share/shared_resources/qiime2/condabin/conda:$PATH
 conda activate qiime2-2019.1
-export TMPDIR=/scratch/Q2-tmp
-mkdir $TMPDIR
+
+export TMPDIR=$(mktemp -d /scratch/Q2-tmp_XXXXXXXX)
 export R_LIBS=$R_LIBS_USER # need to bypass our MRO libraries
 Rscript -e "rmarkdown::render('QIIME2_pipeline.Rmd')"
 rm qsubmit.sh
