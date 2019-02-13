@@ -268,7 +268,7 @@ if(!file.exists("Output/SV_taxonomy_Dada2.txt")){
   seqs<-read_qza("Output/SVsequences.qza")$data
   taxonomy <- assignTaxonomy(as.character(seqs), "/turnbaugh/qb3share/shared_resources/databases/dada2_training_sets/silva_nr_v128_train_set.fa.gz", multithread=12)
   taxonomy <- addSpecies(taxonomy, "/turnbaugh/qb3share/shared_resources/databases/dada2_training_sets/silva_species_assignment_v128.fa.gz", allowMultiple=TRUE)
-  write_tsv(as.data.frame(taxonomy), "Output/SV_taxonomy_Dada2.txt")
+  as.data.frame(taxonomy) %>% rownames_to_column("SV") %>% write_tsv(., "Output/SV_taxonomy_Dada2.txt")
 } else {
     message(date(), " Skipping Dada2 taxonomy as already complete")
 }
