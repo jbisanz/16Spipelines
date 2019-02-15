@@ -47,7 +47,7 @@ export TrimR=5 #equivalent to trim-left-r
 
 echo $(date) Running on $(hostname)
 echo $(date) Loading QIIME2 environment
-export PATH=/turnbaugh/qb3share/shared_resources/qiime2/condabin/conda:$PATH
+export PATH=/turnbaugh/qb3share/shared_resources/qiime2/condabin:$PATH
 conda activate qiime2-2019.1
 
 export TMPDIR=$(mktemp -d /scratch/Q2-tmp_XXXXXXXX)
@@ -100,7 +100,7 @@ dir.create("figures", showWarnings=FALSE)
 
 ```{r manifestbuild}
 manifest<-
-  tibble(Read=list.files(Sys.getenv("READS"), recursive = TRUE, full.names = TRUE)) %>%
+  tibble(Read=list.files(Sys.getenv("READS"), recursive = TRUE, full.names = TRUE, pattern="\\.fastq\\.gz)) %>%
   mutate(Sample=basename(Read) %>% gsub("_S[0-9]{1,3}_R[0-9]_[0-9]{3}\\.fastq\\.gz","", .)) %>%
   mutate(Direction=case_when(
     grepl("_R1_", .$Read) ~ "forward",
