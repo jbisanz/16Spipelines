@@ -28,8 +28,7 @@ Modify the `User Parameters` section below to your liking. Then copy and paste t
 #$ -r y
 #$ -j y
 #$ -l mem_free=4G
-#$ -l arch=linux-x64
-#$ -l netapp=1G,scratch=20G
+#$ -l scratch=20G
 #$ -l h_rt=96:0:0
 #$ -pe smp 24
 
@@ -48,7 +47,7 @@ export TrimR=5 #equivalent to trim-left-r
 echo $(date) Running on $(hostname)
 echo $(date) Loading QIIME2 environment
 export PATH=/turnbaugh/qb3share/shared_resources/qiime2/condabin:$PATH
-conda activate qiime2-2019.1
+conda activate qiime2-2019.4
 
 export TMPDIR=$(mktemp -d /scratch/Q2-tmp_XXXXXXXX)
 export R_LIBS=$R_LIBS_USER # need to bypass our MRO libraries
@@ -107,7 +106,7 @@ manifest<-
     grepl("_R2_", .$Read) ~ "reverse"
   )) %>%
   arrange(Sample) %>%
-  mutate(Read=paste0(getwd(),"/", Read)) %>%
+  #mutate(Read=paste0(getwd(),"/", Read)) %>%
   select(`sample-id`=Sample, `absolute-filepath`=Read, direction=Direction) %>%
   filter(`sample-id`!="Undetermined")
 
