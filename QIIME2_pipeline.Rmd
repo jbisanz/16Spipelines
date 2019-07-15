@@ -99,7 +99,7 @@ dir.create("figures", showWarnings=FALSE)
 
 ```{r manifestbuild}
 manifest<-
-  tibble(Read=list.files(Sys.getenv("READS"), recursive = TRUE, full.names = TRUE, pattern="\\.fastq\\.gz)) %>%
+  tibble(Read=list.files(Sys.getenv("READS"), recursive = TRUE, full.names = TRUE, pattern="\\.fastq\\.gz")) %>%
   mutate(Sample=basename(Read) %>% gsub("_S[0-9]{1,3}_R[0-9]_[0-9]{3}\\.fastq\\.gz","", .)) %>%
   mutate(Direction=case_when(
     grepl("_R1_", .$Read) ~ "forward",
