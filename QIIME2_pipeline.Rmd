@@ -1,5 +1,5 @@
 ---
-title: "QIIME2 2019.1 Processing Pipeline v0.1"
+title: "QIIME2 2020.6 Processing Pipeline v0.2"
 date: 'Run at `r format(Sys.time(), "%Y-%m-%d %H:%M")`'
 output: 
   html_document:
@@ -14,7 +14,7 @@ output:
 
 # Instructions and User Parameters
 
-Modify the `User Parameters` section below to your liking. Then copy and paste the following into your chef.compbio.ucsf.edu session:
+Modify the `User Parameters` section below to your liking. Then copy and paste the following into session on any wynton node. If this is your first time using any lab conda environment, add "source /turnbaugh/qb3share/shared_resources/Conda/etc/profile.d/conda.sh" to your ~/.bash_profile using nano or equivalent.
 
 ```{bash, eval=F}
 #start copy at cat on the line below excluding the #
@@ -33,24 +33,21 @@ Modify the `User Parameters` section below to your liking. Then copy and paste t
 #$ -pe smp 24
 
 # User Parameters--------
-export READS=demultiplexed #a directory containing your demultiplexed reads, can be in any subdirectory structure
+export READS=/turnbaugh/qb3share/SequencingData/000000_DummyData/amplicon/ #an absolute directory containing your demultiplexed reads, can be in any subdirectory structure. Note: This is the directory structure as visible from the wynton cluster
 export TRIMADAPTERS=true #Set to true if primer is in sequence and needs to be removed
 export Fprimer="GTGCCAGCMGCCGCGGTAA" #515F, replace if different primer
 export Rprimer="GGACTACHVGGGTWTCTAAT" #806R, replace if different primer
 export TruncF=220 #equivalent to p-trunc-len-f
 export TruncR=150 #equivalent to p-trunc-len-r
-export TrimL=5 #equivalent to trim-left-f
-export TrimR=5 #equivalent to trim-left-r
+export TrimL=0 #equivalent to trim-left-f, updated to 0 as primers already stripped
+export TrimR=0 #equivalent to trim-left-r, updated to 0 as primers already stripped
 
 #------------------------
 
 echo $(date) Running on $(hostname)
 echo $(date) Loading QIIME2 environment
-export PATH=/turnbaugh/qb3share/shared_resources/qiime2/condabin:$PATH
-conda activate qiime2-2019.4
-
+conda activate qiime2-2020.6
 export TMPDIR=$(mktemp -d /scratch/Q2-tmp_XXXXXXXX)
-export R_LIBS=$R_LIBS_USER # need to bypass our MRO libraries
 Rscript -e "rmarkdown::render('QIIME2_pipeline.Rmd')"
 rm qsubmit.sh
 EOF
@@ -61,25 +58,16 @@ qsub qsubmit.sh
 
 ### !!!Do not modify below unless you want to tweek the processing.!!!
 
-```{r nicetablefun, eval=T, echo=F}
-Interactive.Table<-function(x){
-  return(DT::datatable(x, extensions='Buttons', filter="top", options=list(pageLength=10, dom='Bfrtip', buttons=c('copy','csv','excel', 'pdf') )))
-}
-```
-
 ***
 
 # System set up
 
 ```{r sysset, message=F, warning=F}
-library(dplyr)
-library(tibble)
-library(readr)
-library(tidyr)
-library(ggplot2)
+library(rmarkdown)
 library(plotly)
+library(tidyverse)
+library(dada2) # version included in q2 2020.6 is 1.10.1
 library(ggtree)
-library(dada2)
 library(qiime2R)
 sessionInfo()
 getwd()
@@ -106,13 +94,12 @@ manifest<-
     grepl("_R2_", .$Read) ~ "reverse"
   )) %>%
   arrange(Sample) %>%
-  #mutate(Read=paste0(getwd(),"/", Read)) %>%
   select(`sample-id`=Sample, `absolute-filepath`=Read, direction=Direction) %>%
   filter(`sample-id`!="Undetermined")
 
 write_csv(manifest,"Intermediates/manifest.csv")
 
-Interactive.Table(manifest)
+interactive_table(manifest)
 ```
 
 ## Read quality
@@ -177,15 +164,11 @@ if [ ! -f $PWD/Output/Dada_stats.qza ]; then
     --p-trim-left-f $TrimL \
     --p-trim-left-r $TrimR \
     --p-n-threads $NSLOTS \
-    --o-table $PWD/Output/SVtable_nofilt.qza \
+    --o-table $PWD/Output/SVtable.qza \
     --o-representative-sequences $PWD/Output/SVsequences.qza \
     --o-denoising-stats $PWD/Output/Dada_stats.qza \
     --verbose
-    
-    qiime feature-table filter-samples \
-     --i-table $PWD/Output/SVtable_nofilt.qza \
-     --p-min-features 1 \
-     --o-filtered-table $PWD/Output/SVtable.qza
+
     
 else
   echo $(date) Skipping Dada2 as already complete
@@ -197,12 +180,13 @@ fi
 ```{r readtracking}
 counts<-read_qza("Output/Dada_stats.qza")
 
-Interactive.Table(counts$data)
+interactive_table(counts$data)
 
 counts<-counts$data %>%
   rownames_to_column("SampleID") %>%
+  select(SampleID, input, filtered, denoised, merged, non.chimeric) %>%
   gather(-SampleID, key="Step", value="Reads") %>%
-  mutate(Step=factor(Step, levels=c("input", "filtered","denoised","non.chimeric"))) %>%
+  mutate(Step=factor(Step, levels=c("input", "filtered","denoised", "merged", "non.chimeric"))) %>%
   ggplot(aes(x=Step, y=Reads, group=SampleID, label=SampleID)) +
   geom_line() +
   theme_bw()
@@ -249,10 +233,10 @@ if [ ! -f $PWD/Output/SV_taxonomy_QIIME.qza ]; then
   echo $(date) Assignning Taxonomy with QIIME2
   
   qiime feature-classifier classify-sklearn \
-    --i-classifier /turnbaugh/qb3share/shared_resources/databases/silva-132-99-515-806-nb-classifier.qza \
+    --i-classifier /turnbaugh/qb3share/shared_resources/databases/AmpliconTaxonomyDBs/q2_2020.6/silva-138-99-515-806-nb-classifier.qza \
     --i-reads $PWD/Output/SVsequences.qza \
     --o-classification $PWD/Output/SV_taxonomy_QIIME.qza \
-    --p-n-jobs 4
+    --p-n-jobs $NSLOTS
 else
   echo $(date) Skipping QIIME2 taxonomy as already complete
 fi
@@ -265,8 +249,8 @@ fi
 if(!file.exists("Output/SV_taxonomy_Dada2.txt")){
   message(date(), " Assigning taxonomy with dada2")
   seqs<-read_qza("Output/SVsequences.qza")$data
-  taxonomy <- assignTaxonomy(as.character(seqs), "/turnbaugh/qb3share/shared_resources/databases/dada2_training_sets/silva_nr_v128_train_set.fa.gz", multithread=12)
-  taxonomy <- addSpecies(taxonomy, "/turnbaugh/qb3share/shared_resources/databases/dada2_training_sets/silva_species_assignment_v128.fa.gz", allowMultiple=TRUE)
+  taxonomy <- assignTaxonomy(as.character(seqs), "/turnbaugh/qb3share/shared_resources/databases/AmpliconTaxonomyDBs/q2_2020.6/silva_nr_v138_train_set.fa.gz", multithread=12)
+  taxonomy <- addSpecies(taxonomy, "/turnbaugh/qb3share/shared_resources/databases/AmpliconTaxonomyDBs/q2_2020.6/silva_species_assignment_v138.fa.gz", allowMultiple=TRUE)
   as.data.frame(taxonomy) %>% rownames_to_column("SV") %>% write_tsv(., "Output/SV_taxonomy_Dada2.txt")
 } else {
     message(date(), " Skipping Dada2 taxonomy as already complete")
@@ -318,13 +302,14 @@ if [ ! -f $PWD/Output/SVtree_inserted.qza ]; then
   
   qiime fragment-insertion sepp \
     --i-representative-sequences $PWD/Output/SVsequences.qza \
+    --i-reference-database /turnbaugh/qb3share/shared_resources/databases/AmpliconTaxonomyDBs/q2_2020.6/sepp-refs-silva-128.qza \
     --p-threads $NSLOTS \
     --o-tree $PWD/Output/SVtree_inserted.qza \
     --o-placements $PWD/Output/SVplacements.qza \
     --verbose
     
 else
-  echo $(date) Skipping making Tree as already complete
+  echo $(date) Skipping SEPP as already complete
 fi
 ```
 
@@ -340,6 +325,19 @@ ggsave("figures/Tree_Insertion.pdf",device="pdf", useDingbats=F, height=8.5, wid
 
 ***
 
+## PICRUST2 Metagenome Inference
+
+Currently dissabled as picrust2 plugin not currently up to date for 2020.6
+
+```{bash picrust, eval=F}
+qiime picrust2 full-pipeline \
+   --i-table $PWD/Output/SVtable.qza \
+   --i-seq $PWD/Output/SVsequences.qza \
+   --output-dir $PWD/Output/picrust \
+   --p-threads $NSLOTS \
+   --verbose
+```
+
 # Clean Up
 
 Removing the Read artifacts to avoid double storage of the sequencing data.
@@ -352,7 +350,7 @@ rm -r Intermediates
 
 Pipeline complete. Additional QC may be required.
 
-Desired files for downstream analysis that can be read directly into R (using `qiime2R::read_qza("artifact.qza")` for qza files):
+Desired files for downstream analysis that can be read directly into R (using `qiime2R::read_qza("artifact.qza")$data` for qza files):
 
 * SVtable.qza
 * SVsequences.qza
